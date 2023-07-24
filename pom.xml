@@ -49,47 +49,47 @@
             <dependency>
                 <groupId>org.wso2.carbon</groupId>
                 <artifactId>org.wso2.carbon.user.api</artifactId>
-                <version>4.9.0-m4</version>
+                <version>${carbon.kernel.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.wso2.carbon</groupId>
                 <artifactId>org.wso2.carbon.user.core</artifactId>
-                <version>4.9.0-m4</version>
+                <version>${carbon.kernel.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.wso2.carbon.identity.framework</groupId>
                 <artifactId>org.wso2.carbon.identity.application.authentication.framework</artifactId>
-                <version>5.25.214</version>
+                <version>${carbon.identity.framework.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.wso2.carbon.identity.framework</groupId>
                 <artifactId>org.wso2.carbon.identity.core</artifactId>
-                <version>5.25.214</version>
+                <version>${carbon.identity.framework.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.wso2.carbon.identity.framework</groupId>
                 <artifactId>org.wso2.carbon.idp.mgt</artifactId>
-                <version>5.25.214</version>
+                <version>${carbon.identity.framework.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.wso2.carbon.identity.framework</groupId>
                 <artifactId>org.wso2.carbon.identity.base</artifactId>
-                <version>5.25.214</version>
+                <version>${carbon.identity.framework.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.wso2.carbon.identity.governance</groupId>
                 <artifactId>org.wso2.carbon.identity.governance</artifactId>
-                <version>1.8.40</version>
+                <version>${carbon.identity.governance.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.wso2.carbon.identity.event.handler.accountlock</groupId>
                 <artifactId>org.wso2.carbon.identity.handler.event.account.lock</artifactId>
-                <version>1.8.2</version>
+                <version>${carbon.identity.handler.event.account.lock.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.wso2.carbon.extension.identity.authenticator.utils</groupId>
                 <artifactId>org.wso2.carbon.extension.identity.helper</artifactId>
-                <version>1.0.12</version>
+                <version>${carbon.extension.identity.helper.version}</version>
                 <exclusions>
                     <exclusion>
                         <groupId>org.wso2.carbon.identity</groupId>
@@ -104,28 +104,28 @@
             <dependency>
                 <groupId>org.wso2.carbon.identity.event.handler.notification</groupId>
                 <artifactId>org.wso2.carbon.identity.event.handler.notification</artifactId>
-                <version>1.7.12</version>
+                <version>${carbon.identity.event.handler.notification.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.wso2.orbit.org.owasp.encoder</groupId>
                 <artifactId>encoder</artifactId>
-                <version>1.2.0.wso2v1</version>
+                <version>${owasp.encoder.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.wso2.carbon.identity.governance</groupId>
                 <artifactId>org.wso2.carbon.identity.recovery</artifactId>
-                <version>1.8.40</version>
+                <version>${carbon.identity.governance.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.wso2.carbon.identity.governance</groupId>
                 <artifactId>org.wso2.carbon.identity.captcha</artifactId>
-                <version>1.8.40</version>
+                <version>${carbon.identity.governance.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.mockito</groupId>
                 <artifactId>mockito-inline</artifactId>
                 <scope>test</scope>
-                <version>3.8.0</version>
+                <version>${mockito-inline.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -222,6 +222,15 @@
         <carbon.user.api.imp.pkg.version.range>[1.0.1, 2.0.0)</carbon.user.api.imp.pkg.version.range>
         <imp.pkg.version.javax.servlet>[2.6.0, 3.0.0)</imp.pkg.version.javax.servlet>
         <encoder.wso2.import.version.range>[1.2.0, 2.0.0)</encoder.wso2.import.version.range>
+
+        <carbon.kernel.version>4.9.0-m4</carbon.kernel.version>
+        <carbon.identity.framework.version>5.25.214</carbon.identity.framework.version>
+        <carbon.identity.governance.version>1.8.40</carbon.identity.governance.version>
+        <carbon.identity.handler.event.account.lock.version>1.8.2</carbon.identity.handler.event.account.lock.version>
+        <carbon.extension.identity.helper.version>1.0.12</carbon.extension.identity.helper.version>
+        <carbon.identity.event.handler.notification.version>1.7.12</carbon.identity.event.handler.notification.version>
+        <owasp.encoder.version>1.2.0.wso2v1</owasp.encoder.version>
+        <mockito-inline.version>3.8.0</mockito-inline.version>
 
         <findbugs-maven-plugin.version>3.0.5</findbugs-maven-plugin.version>
         <maven.bundle.plugin.version>3.2.0</maven.bundle.plugin.version>
