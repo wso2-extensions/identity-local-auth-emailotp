@@ -18,6 +18,8 @@
 
 package org.wso2.carbon.identity.local.auth.emailotp;
 
+import org.wso2.carbon.identity.central.log.mgt.utils.LogConstants;
+import org.wso2.carbon.identity.central.log.mgt.utils.LoggerUtils;
 import org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants;
 import org.wso2.carbon.identity.local.auth.emailotp.exception.EmailOtpAuthenticatorServerException;
 import org.wso2.carbon.identity.local.auth.emailotp.internal.AuthenticatorDataHolder;
@@ -61,6 +63,7 @@ import org.wso2.carbon.user.api.UserStoreManager;
 import org.wso2.carbon.user.core.common.AbstractUserStoreManager;
 import org.wso2.carbon.user.core.common.User;
 import org.wso2.carbon.user.core.util.UserCoreUtil;
+import org.wso2.carbon.utils.DiagnosticLog;
 import org.wso2.carbon.utils.multitenancy.MultitenantUtils;
 
 import java.io.IOException;
@@ -81,6 +84,9 @@ import static org.wso2.carbon.identity.event.IdentityEventConstants.EventPropert
 import static org.wso2.carbon.identity.event.IdentityEventConstants.EventProperty.USER_STORE_MANAGER;
 import static org.wso2.carbon.identity.event.handler.notification.NotificationConstants.ARBITRARY_SEND_TO;
 import static org.wso2.carbon.identity.event.handler.notification.NotificationConstants.EmailNotification.EMAIL_TEMPLATE_TYPE;
+import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.LogConstants.ActionIDs.PROCESS_AUTHENTICATION_RESPONSE;
+import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.LogConstants.ActionIDs.VALIDATE_EMAIL_OTP_REQUEST;
+import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.LogConstants.EMAIL_OTP_SERVICE;
 import static org.wso2.carbon.user.core.UserCoreConstants.PRIMARY_DEFAULT_DOMAIN_NAME;
 
 /**
@@ -122,10 +128,19 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         if (log.isDebugEnabled()) {
             log.debug("Inside EmailOTPAuthenticator canHandle method");
         }
-        return ((StringUtils.isNotBlank(request.getParameter(AuthenticatorConstants.RESEND))
+        boolean canHandle = ((StringUtils.isNotBlank(request.getParameter(AuthenticatorConstants.RESEND))
                 && StringUtils.isBlank(request.getParameter(AuthenticatorConstants.CODE)))
                 || StringUtils.isNotBlank(request.getParameter(AuthenticatorConstants.CODE))
                 || StringUtils.isNotBlank(request.getParameter(AuthenticatorConstants.USER_NAME)));
+        if (canHandle && LoggerUtils.isDiagnosticLogsEnabled()) {
+            DiagnosticLog.DiagnosticLogBuilder diagnosticLogBuilder = new DiagnosticLog.DiagnosticLogBuilder(
+                    EMAIL_OTP_SERVICE, FrameworkConstants.LogConstants.ActionIDs.HANDLE_AUTH_STEP);
+            diagnosticLogBuilder.resultMessage("Email OTP Authenticator handling the authentication.")
+                    .logDetailLevel(DiagnosticLog.LogDetailLevel.INTERNAL_SYSTEM)
+                    .resultStatus(DiagnosticLog.ResultStatus.SUCCESS);
+            LoggerUtils.triggerDiagnosticLogEvent(diagnosticLogBuilder);
+        }
+        return canHandle;
     }
 
     @Override
@@ -152,6 +167,16 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             throws AuthenticationFailedException {
 
         User user;
+        if (LoggerUtils.isDiagnosticLogsEnabled()) {
+            DiagnosticLog.DiagnosticLogBuilder diagnosticLogBuilder = new DiagnosticLog.DiagnosticLogBuilder(
+                    EMAIL_OTP_SERVICE, VALIDATE_EMAIL_OTP_REQUEST);
+            diagnosticLogBuilder.resultMessage("Validate email otp authentication request.")
+                    .logDetailLevel(DiagnosticLog.LogDetailLevel.APPLICATION)
+                    .resultStatus(DiagnosticLog.ResultStatus.SUCCESS)
+                    .inputParam(LogConstants.InputKeys.STEP, context.getCurrentStep())
+                    .inputParams(getApplicationDetails(context));
+            LoggerUtils.triggerDiagnosticLogEvent(diagnosticLogBuilder);
+        }
         AuthenticatedUser authenticatedUserFromContext = getAuthenticatedUserFromContext(context);
         if (authenticatedUserFromContext == null) {
             if (context.isRetrying() && Boolean.parseBoolean(request.getParameter(AuthenticatorConstants.RESEND))) {
@@ -240,6 +265,16 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
     protected void processAuthenticationResponse(HttpServletRequest request, HttpServletResponse response,
                                                  AuthenticationContext context) throws AuthenticationFailedException {
 
+        if (LoggerUtils.isDiagnosticLogsEnabled()) {
+            DiagnosticLog.DiagnosticLogBuilder diagnosticLogBuilder = new DiagnosticLog.DiagnosticLogBuilder(
+                    EMAIL_OTP_SERVICE, PROCESS_AUTHENTICATION_RESPONSE);
+            diagnosticLogBuilder.resultMessage("Processing email otp authentication response.")
+                    .logDetailLevel(DiagnosticLog.LogDetailLevel.APPLICATION)
+                    .resultStatus(DiagnosticLog.ResultStatus.SUCCESS)
+                    .inputParam(LogConstants.InputKeys.STEP, context.getCurrentStep())
+                    .inputParams(getApplicationDetails(context));
+            LoggerUtils.triggerDiagnosticLogEvent(diagnosticLogBuilder);
+        }
         context.removeProperty(AuthenticatorConstants.IS_REDIRECT_TO_EMAIL_OTP);
 
         AuthenticatedUser authenticatedUserFromContext = getAuthenticatedUserFromContext(context);
@@ -292,6 +327,20 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             }
             publishPostEmailOTPValidatedEvent(authenticatedUserFromContext, true,
                     false, request, context);
+            if (LoggerUtils.isDiagnosticLogsEnabled()) {
+                DiagnosticLog.DiagnosticLogBuilder diagnosticLogBuilder = new DiagnosticLog.DiagnosticLogBuilder(
+                        EMAIL_OTP_SERVICE, PROCESS_AUTHENTICATION_RESPONSE);
+                diagnosticLogBuilder.resultMessage("Email OTP authentication successful.")
+                        .logDetailLevel(DiagnosticLog.LogDetailLevel.APPLICATION)
+                        .resultStatus(DiagnosticLog.ResultStatus.SUCCESS)
+                        .inputParam(LogConstants.InputKeys.STEP, context.getCurrentStep())
+                        .inputParams(getApplicationDetails(context))
+                        .inputParam(LogConstants.InputKeys.USER, LoggerUtils.isLogMaskingEnable ?
+                                LoggerUtils.getMaskedContent(authenticatedUserFromContext.getUserName()) :
+                                authenticatedUserFromContext.getUserName())
+                        .inputParam(LogConstants.InputKeys.USER_ID, authenticatedUserFromContext.getLoggableUserId());
+                LoggerUtils.triggerDiagnosticLogEvent(diagnosticLogBuilder);
+            }
             return;
         }
         /*
@@ -622,6 +671,23 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         } else {
             triggerEvent(IdentityEventConstants.Event.TRIGGER_NOTIFICATION, authenticatedUser, metaProperties);
         }
+        if (LoggerUtils.isDiagnosticLogsEnabled()) {
+            DiagnosticLog.DiagnosticLogBuilder diagnosticLogBuilder = new DiagnosticLog.DiagnosticLogBuilder(
+                    EMAIL_OTP_SERVICE, AuthenticatorConstants.LogConstants.ActionIDs.SEND_EMAIL_OTP);
+            diagnosticLogBuilder.resultMessage("Email OTP sent successfully.")
+                    .resultStatus(DiagnosticLog.ResultStatus.SUCCESS)
+                    .logDetailLevel(DiagnosticLog.LogDetailLevel.APPLICATION)
+                    .inputParam("user store domain", authenticatedUser.getUserStoreDomain())
+                    .inputParam(LogConstants.InputKeys.USER, LoggerUtils.isLogMaskingEnable ?
+                            LoggerUtils.getMaskedContent(authenticatedUser.getUserName()) :
+                            authenticatedUser.getUserName())
+                    .inputParam(LogConstants.InputKeys.USER_ID, authenticatedUser.getLoggableUserId())
+                    .inputParam("scenario", scenario.name());
+            if (context.getSequenceConfig().getApplicationConfig() != null) {
+                diagnosticLogBuilder.inputParams(getApplicationDetails(context));
+            }
+            LoggerUtils.triggerDiagnosticLogEvent(diagnosticLogBuilder);
+        }
     }
 
     /**
@@ -662,6 +728,9 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             url = url + getCaptchaParams(request, context);
             response.sendRedirect(url);
             context.setProperty(AuthenticatorConstants.IS_REDIRECT_TO_EMAIL_OTP, "true");
+            if (LoggerUtils.isDiagnosticLogsEnabled()) {
+                publishInitiateAuthRedirectionDiagnosticLogs("Redirecting to email otp login page.", context, url);
+            }
         } catch (IOException e) {
             throw handleAuthErrorScenario(
                     AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_REDIRECTING_TO_LOGIN_PAGE, e, (Object) null);
@@ -821,6 +890,9 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         }
         retryParam = AuthenticatorConstants.ERROR_USER_ACCOUNT_LOCKED_QUERY_PARAMS;
         redirectToErrorPage(request, response, context, queryParams, retryParam);
+        if (LoggerUtils.isDiagnosticLogsEnabled()) {
+            publishInitiateAuthRedirectionDiagnosticLogs("Redirecting to error page.", context, queryParams);
+        }
     }
 
     /**
@@ -1371,10 +1443,13 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
                 log.debug(logMsg);
             }
             // Redirecting the user to the IDF login page.
-            response.sendRedirect(loginPage + ("?" + queryParams) + "&"
-                    + AuthenticatorConstants.AUTHENTICATORS
-                    + AuthenticatorConstants.IDF_HANDLER_NAME + ":"
-                    + AuthenticatorConstants.LOCAL_AUTHENTICATOR);
+            String redirectURL = loginPage + ("?" + queryParams) + "&" + AuthenticatorConstants.AUTHENTICATORS
+                    + AuthenticatorConstants.IDF_HANDLER_NAME + ":" + AuthenticatorConstants.LOCAL_AUTHENTICATOR;
+            response.sendRedirect(redirectURL);
+            if (LoggerUtils.isDiagnosticLogsEnabled()) {
+                publishInitiateAuthRedirectionDiagnosticLogs("Redirecting to identifier first flow since no " +
+                        "authenticated user was found", context, redirectURL);
+            }
         } catch (IOException e) {
             throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_REDIRECTING_TO_IDF_PAGE);
         }
@@ -1484,5 +1559,34 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
     private boolean isEmailOTPAsFirstFactor(AuthenticationContext context) {
 
         return (context.getCurrentStep() == 1 || isPreviousIdPAuthenticationFlowHandler(context));
+    }
+
+    private void publishInitiateAuthRedirectionDiagnosticLogs(String resultMessage,
+                                                              AuthenticationContext context, String url) {
+        DiagnosticLog.DiagnosticLogBuilder diagnosticLogBuilder = new DiagnosticLog.DiagnosticLogBuilder(
+                EMAIL_OTP_SERVICE, PROCESS_AUTHENTICATION_RESPONSE);
+        diagnosticLogBuilder.resultMessage(resultMessage)
+                .logDetailLevel(DiagnosticLog.LogDetailLevel.APPLICATION)
+                .resultStatus(DiagnosticLog.ResultStatus.SUCCESS)
+                .inputParam(LogConstants.InputKeys.STEP, context.getCurrentStep())
+                .inputParam(LogConstants.InputKeys.REDIREDCT_URI, url)
+                .inputParams(getApplicationDetails(context));
+        LoggerUtils.triggerDiagnosticLogEvent(diagnosticLogBuilder);
+    }
+
+    /** Add application details to a map.
+     *
+     * @param context AuthenticationContext.
+     * @return Map with application details.
+     */
+    private Map<String, String> getApplicationDetails(AuthenticationContext context) {
+
+        Map<String, String> applicationDetailsMap = new HashMap<>();
+        FrameworkUtils.getApplicationResourceId(context).ifPresent(applicationId ->
+                applicationDetailsMap.put(LogConstants.InputKeys.APPLICATION_ID, applicationId));
+        FrameworkUtils.getApplicationName(context).ifPresent(applicationName ->
+                applicationDetailsMap.put(LogConstants.InputKeys.APPLICATION_NAME,
+                        applicationName));
+        return applicationDetailsMap;
     }
 }
