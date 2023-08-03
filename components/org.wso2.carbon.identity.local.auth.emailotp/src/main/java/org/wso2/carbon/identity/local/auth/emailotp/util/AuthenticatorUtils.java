@@ -18,9 +18,6 @@
 
 package org.wso2.carbon.identity.local.auth.emailotp.util;
 
-import org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants;
-import org.wso2.carbon.identity.local.auth.emailotp.exception.EmailOtpAuthenticatorServerException;
-import org.wso2.carbon.identity.local.auth.emailotp.internal.AuthenticatorDataHolder;
 import org.apache.commons.lang.StringUtils;
 import org.owasp.encoder.Encode;
 import org.wso2.carbon.identity.application.authentication.framework.context.AuthenticationContext;
@@ -32,6 +29,9 @@ import org.wso2.carbon.identity.core.URLBuilderException;
 import org.wso2.carbon.identity.governance.IdentityGovernanceException;
 import org.wso2.carbon.identity.governance.IdentityGovernanceService;
 import org.wso2.carbon.identity.handler.event.account.lock.exception.AccountLockServiceException;
+import org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants;
+import org.wso2.carbon.identity.local.auth.emailotp.exception.EmailOtpAuthenticatorServerException;
+import org.wso2.carbon.identity.local.auth.emailotp.internal.AuthenticatorDataHolder;
 
 import java.net.URI;
 import java.net.URISyntaxException;

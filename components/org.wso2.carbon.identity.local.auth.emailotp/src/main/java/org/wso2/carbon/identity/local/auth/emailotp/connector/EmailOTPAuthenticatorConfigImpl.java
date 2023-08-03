@@ -71,9 +71,11 @@ public class EmailOTPAuthenticatorConfigImpl implements IdentityConnectorConfig 
 
         Map<String, String> nameMapping = new HashMap<>();
         nameMapping.put(AuthenticatorConstants.ConnectorConfig.OTP_EXPIRY_TIME, "Email OTP expiry time");
-        nameMapping.put(AuthenticatorConstants.ConnectorConfig.ENABLE_BACKUP_CODES, "Enable authenticate with backup codes");
+        nameMapping.put(AuthenticatorConstants.ConnectorConfig.ENABLE_BACKUP_CODES,
+                "Enable authenticate with backup codes");
         nameMapping.put(AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_LENGTH, "Email OTP token length");
-        nameMapping.put(AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_USE_NUMERIC_CHARS, "Use only numeric characters for OTP token");
+        nameMapping.put(AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_USE_NUMERIC_CHARS,
+                "Use only numeric characters for OTP token");
         return nameMapping;
     }
 
@@ -81,11 +83,14 @@ public class EmailOTPAuthenticatorConfigImpl implements IdentityConnectorConfig 
     public Map<String, String> getPropertyDescriptionMapping() {
 
         Map<String, String> descriptionMapping = new HashMap<>();
-        descriptionMapping.put(AuthenticatorConstants.ConnectorConfig.OTP_EXPIRY_TIME, "Email OTP expiry time in seconds");
-        descriptionMapping.put(AuthenticatorConstants.ConnectorConfig.ENABLE_BACKUP_CODES, "Allow users to login with backup codes");
-        descriptionMapping.put(AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_LENGTH, "Number of characters in the OTP token");
-        descriptionMapping.put(AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_USE_NUMERIC_CHARS, "Enabling this will only generate OTP tokens with 0-9 " +
-                "characters");
+        descriptionMapping.put(AuthenticatorConstants.ConnectorConfig.OTP_EXPIRY_TIME,
+                "Email OTP expiry time in seconds");
+        descriptionMapping.put(AuthenticatorConstants.ConnectorConfig.ENABLE_BACKUP_CODES,
+                "Allow users to login with backup codes");
+        descriptionMapping.put(AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_LENGTH,
+                "Number of characters in the OTP token");
+        descriptionMapping.put(AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_USE_NUMERIC_CHARS,
+                "Enabling this will only generate OTP tokens with 0-9 characters");
         return descriptionMapping;
     }
 

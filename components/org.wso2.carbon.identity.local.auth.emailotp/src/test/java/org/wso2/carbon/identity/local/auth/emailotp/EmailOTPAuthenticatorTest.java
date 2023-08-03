@@ -18,9 +18,6 @@
 
 package org.wso2.carbon.identity.local.auth.emailotp;
 
-import org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants;
-import org.wso2.carbon.identity.local.auth.emailotp.internal.AuthenticatorDataHolder;
-import org.wso2.carbon.identity.local.auth.emailotp.util.AuthenticatorUtils;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.testng.Assert;
@@ -43,6 +40,9 @@ import org.wso2.carbon.identity.claim.metadata.mgt.ClaimMetadataManagementServic
 import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
 import org.wso2.carbon.identity.event.services.IdentityEventService;
 import org.wso2.carbon.identity.governance.IdentityGovernanceService;
+import org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants;
+import org.wso2.carbon.identity.local.auth.emailotp.internal.AuthenticatorDataHolder;
+import org.wso2.carbon.identity.local.auth.emailotp.util.AuthenticatorUtils;
 import org.wso2.carbon.user.core.UserRealm;
 import org.wso2.carbon.user.core.common.AbstractUserStoreManager;
 import org.wso2.carbon.user.core.common.User;

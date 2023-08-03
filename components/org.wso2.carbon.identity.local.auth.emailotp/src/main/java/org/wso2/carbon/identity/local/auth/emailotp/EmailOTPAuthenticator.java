@@ -18,10 +18,6 @@
 
 package org.wso2.carbon.identity.local.auth.emailotp;
 
-import org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants;
-import org.wso2.carbon.identity.local.auth.emailotp.exception.EmailOtpAuthenticatorServerException;
-import org.wso2.carbon.identity.local.auth.emailotp.internal.AuthenticatorDataHolder;
-import org.wso2.carbon.identity.local.auth.emailotp.util.AuthenticatorUtils;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.math.NumberUtils;
@@ -54,6 +50,10 @@ import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
 import org.wso2.carbon.identity.event.IdentityEventConstants;
 import org.wso2.carbon.identity.event.IdentityEventException;
 import org.wso2.carbon.identity.event.event.Event;
+import org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants;
+import org.wso2.carbon.identity.local.auth.emailotp.exception.EmailOtpAuthenticatorServerException;
+import org.wso2.carbon.identity.local.auth.emailotp.internal.AuthenticatorDataHolder;
+import org.wso2.carbon.identity.local.auth.emailotp.util.AuthenticatorUtils;
 import org.wso2.carbon.idp.mgt.IdentityProviderManagementException;
 import org.wso2.carbon.user.api.UserRealm;
 import org.wso2.carbon.user.api.UserStoreException;
@@ -221,11 +221,12 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             return;
         }
         AuthenticatorConstants.AuthenticationScenarios scenario = resolveScenario(request, context);
-        if (scenario == AuthenticatorConstants.AuthenticationScenarios.INITIAL_OTP || scenario == AuthenticatorConstants.AuthenticationScenarios.RESEND_OTP) {
+        if (scenario == AuthenticatorConstants.AuthenticationScenarios.INITIAL_OTP ||
+                scenario == AuthenticatorConstants.AuthenticationScenarios.RESEND_OTP) {
             /*
-            * Here we need to pass the authenticated user as the authenticated user from context since the events needs
-            * to triggered against the context user.
-            */
+             * Here we need to pass the authenticated user as the authenticated user from context since the events needs
+             * to triggered against the context user.
+             */
             sendEmailOtp(email, applicationTenantDomain, authenticatedUserFromContext, scenario, context);
             publishPostEmailOTPGeneratedEvent(authenticatedUserFromContext, request, context);
             redirectToEmailOTPLoginPage(authenticatedUserFromContext.getUserName(), email, applicationTenantDomain,
@@ -268,7 +269,8 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         AuthenticatedUser authenticatingUser = resolveAuthenticatingUser(authenticatedUserFromContext,
                 mappedLocalUsername, applicationTenantDomain, isInitialFederationAttempt);
         if (!isInitialFederationAttempt && AuthenticatorUtils.isAccountLocked(authenticatingUser)) {
-            throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_USER_ACCOUNT_LOCKED, authenticatingUser.getUserName());
+            throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_USER_ACCOUNT_LOCKED,
+                    authenticatingUser.getUserName());
         }
         if (StringUtils.isBlank(request.getParameter(AuthenticatorConstants.CODE))) {
             throw handleInvalidCredentialsScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_EMPTY_OTP_CODE,
@@ -278,8 +280,9 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             throw handleInvalidCredentialsScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_RETRYING_OTP_RESEND,
                     authenticatedUserFromContext.getUserName());
         }
-        boolean isSuccessfulAttempt = isSuccessfulAuthAttempt(request.getParameter(AuthenticatorConstants.CODE), applicationTenantDomain,
-                authenticatingUser, context);
+        boolean isSuccessfulAttempt =
+                isSuccessfulAuthAttempt(request.getParameter(AuthenticatorConstants.CODE), applicationTenantDomain,
+                        authenticatingUser, context);
         if (isSuccessfulAttempt) {
             // It reached here means the authentication was successful.
             if (log.isDebugEnabled()) {
@@ -305,11 +308,13 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         if (Boolean.parseBoolean(context.getProperty(AuthenticatorConstants.OTP_EXPIRED).toString())) {
             publishPostEmailOTPValidatedEvent(authenticatedUserFromContext, false,
                     true, request, context);
-            throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_OTP_EXPIRED, authenticatedUserFromContext.getUserName());
+            throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_OTP_EXPIRED,
+                    authenticatedUserFromContext.getUserName());
         } else {
             publishPostEmailOTPValidatedEvent(authenticatedUserFromContext, false,
                     false, request, context);
-            throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_OTP_INVALID, authenticatedUserFromContext.getUserName());
+            throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_OTP_INVALID,
+                    authenticatedUserFromContext.getUserName());
         }
     }
 
@@ -337,7 +342,8 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             if (StringUtils.isEmpty(email)) {
                 // Add the reason that user cannot authenticate with, to the endpoint param of the context.
                 context.addEndpointParam(FrameworkConstants.NOT_SATISFY_PREREQUISITES_REASON + "." +
-                        AuthenticatorConstants.EMAIL_OTP_AUTHENTICATOR_NAME, AuthenticatorConstants.EMAIL_OTP_EMAIL_NOT_FOUND_ERROR_CODE);
+                                AuthenticatorConstants.EMAIL_OTP_AUTHENTICATOR_NAME,
+                        AuthenticatorConstants.EMAIL_OTP_EMAIL_NOT_FOUND_ERROR_CODE);
                 return false;
             }
             return true;
@@ -390,7 +396,8 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         } else if (!context.isRetrying() && StringUtils.isBlank(request.getParameter(AuthenticatorConstants.CODE)) &&
                 StringUtils.isBlank(request.getParameter(AuthenticatorConstants.RESEND))) {
             return AuthenticatorConstants.AuthenticationScenarios.INITIAL_OTP;
-        } else if (context.isRetrying() && StringUtils.isNotBlank(request.getParameter(AuthenticatorConstants.RESEND)) &&
+        } else if (context.isRetrying() &&
+                StringUtils.isNotBlank(request.getParameter(AuthenticatorConstants.RESEND)) &&
                 Boolean.parseBoolean(request.getParameter(AuthenticatorConstants.RESEND))) {
             return AuthenticatorConstants.AuthenticationScenarios.RESEND_OTP;
         }
@@ -410,7 +417,8 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         // Add required meta properties to the event.
         Map<String, Object> metaProperties = new HashMap<>();
         metaProperties.put(AUTHENTICATOR_NAME, AuthenticatorConstants.EMAIL_OTP_AUTHENTICATOR_NAME);
-        metaProperties.put(PROPERTY_FAILED_LOGIN_ATTEMPTS_CLAIM, AuthenticatorConstants.Claims.EMAIL_OTP_FAILED_ATTEMPTS_CLAIM);
+        metaProperties.put(PROPERTY_FAILED_LOGIN_ATTEMPTS_CLAIM,
+                AuthenticatorConstants.Claims.EMAIL_OTP_FAILED_ATTEMPTS_CLAIM);
         metaProperties.put(USER_STORE_MANAGER, userStoreManager);
         metaProperties.put(OPERATION_STATUS, true);
 
@@ -430,7 +438,8 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         // Add required meta properties to the event.
         Map<String, Object> metaProperties = new HashMap<>();
         metaProperties.put(AUTHENTICATOR_NAME, AuthenticatorConstants.EMAIL_OTP_AUTHENTICATOR_NAME);
-        metaProperties.put(PROPERTY_FAILED_LOGIN_ATTEMPTS_CLAIM, AuthenticatorConstants.Claims.EMAIL_OTP_FAILED_ATTEMPTS_CLAIM);
+        metaProperties.put(PROPERTY_FAILED_LOGIN_ATTEMPTS_CLAIM,
+                AuthenticatorConstants.Claims.EMAIL_OTP_FAILED_ATTEMPTS_CLAIM);
         metaProperties.put(USER_STORE_MANAGER, userStoreManager);
         metaProperties.put(OPERATION_STATUS, false);
 
@@ -456,7 +465,8 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
                     AuthenticatorConstants.ErrorMessages.ERROR_CODE_EMPTY_OTP_CODE, user.getUserName());
         }
         if (StringUtils.isBlank(tokenInContext)) {
-            throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_EMPTY_OTP_CODE_IN_CONTEXT, user.getUserName());
+            throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_EMPTY_OTP_CODE_IN_CONTEXT,
+                    user.getUserName());
         }
         boolean isExpired = isOtpExpired(tenantDomain, context);
         if (userToken.equals(tokenInContext)) {
@@ -498,8 +508,9 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         String fullyQualifiedUsername = user.toFullQualifiedUsername();
         String tenantAwareUsername = MultitenantUtils.getTenantAwareUsername(fullyQualifiedUsername);
         // Get the saved backup codes from the user store for the user.
-        String savedBackupCodes = getUserClaimValueFromUserStore(AuthenticatorConstants.Claims.OTP_BACKUP_CODES_CLAIM, user,
-                AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_BACKUP_CODES);
+        String savedBackupCodes =
+                getUserClaimValueFromUserStore(AuthenticatorConstants.Claims.OTP_BACKUP_CODES_CLAIM, user,
+                        AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_BACKUP_CODES);
         if (StringUtils.isBlank(savedBackupCodes)) {
             if (log.isDebugEnabled()) {
                 log.debug("No backup codes found for user: " + user.getUserName());
@@ -555,7 +566,8 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             claimsToUpdate.put(AuthenticatorConstants.Claims.OTP_BACKUP_CODES_CLAIM, unusedBackupCodes);
             userStoreManager.setUserClaimValues(tenantAwareUsername, claimsToUpdate, null);
         } catch (UserStoreException e) {
-            throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_UPDATING_BACKUP_CODES, e, user.getUserName());
+            throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_UPDATING_BACKUP_CODES,
+                    e, user.getUserName());
         }
     }
 
@@ -602,14 +614,10 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             metaProperties.put(AuthenticatorConstants.SERVICE_PROVIDER_NAME, context.getServiceProviderName());
         }
         metaProperties.put(AuthenticatorConstants.CODE, otp);
-        if (scenario == AuthenticatorConstants.AuthenticationScenarios.RESEND_OTP) {
-            metaProperties.put(EMAIL_TEMPLATE_TYPE, AuthenticatorConstants.EMAIL_OTP_TEMPLATE_NAME);
-        } else {
-            metaProperties.put(EMAIL_TEMPLATE_TYPE, AuthenticatorConstants.EMAIL_OTP_TEMPLATE_NAME);
-        }
+        metaProperties.put(EMAIL_TEMPLATE_TYPE, AuthenticatorConstants.EMAIL_OTP_TEMPLATE_NAME);
         metaProperties.put(ARBITRARY_SEND_TO, email);
 
-        /* Saas apps are created at the super tenant level and they can be accessed by users of other organizations.
+        /* SaaS apps are created at the super tenant level and they can be accessed by users of other organizations.
         If users of other organizations try to login to a saas app, the email notification should be triggered from the
         email provider configured for that organization. Hence, we need to start a new tenanted flow here. */
         if (context.getSequenceConfig().getApplicationConfig().isSaaSApp()) {
@@ -649,9 +657,10 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             // Set the email address in the UI by masking it.
             if (StringUtils.isNotBlank(username) && StringUtils.isNotBlank(email)
                     && !Boolean.parseBoolean(
-                            String.valueOf(context.getParameter(
-                                    AuthenticatorConstants.IS_IDF_INITIATED_FROM_AUTHENTICATOR)))) {
-                url = url + AuthenticatorConstants.SCREEN_VALUE_QUERY_PARAM + getMaskedEmailAddress(username, email, tenantDomain);
+                    String.valueOf(context.getParameter(
+                            AuthenticatorConstants.IS_IDF_INITIATED_FROM_AUTHENTICATOR)))) {
+                url = url + AuthenticatorConstants.SCREEN_VALUE_QUERY_PARAM +
+                        getMaskedEmailAddress(username, email, tenantDomain);
             }
             if (context.isRetrying() && !Boolean.parseBoolean(request.getParameter(AuthenticatorConstants.RESEND))) {
                 url = url + AuthenticatorConstants.RETRY_QUERY_PARAMS;
@@ -720,14 +729,16 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
                     AuthenticatorConstants.CODE));
         } else {
             if (isExpired) {
-                eventProperties.put(IdentityEventConstants.EventProperty.OTP_STATUS, AuthenticatorConstants.STATUS_OTP_EXPIRED);
+                eventProperties.put(IdentityEventConstants.EventProperty.OTP_STATUS,
+                        AuthenticatorConstants.STATUS_OTP_EXPIRED);
                 // Add generated time and expiry time info for the event.
                 long otpGeneratedTime = (long) context.getProperty(AuthenticatorConstants.OTP_GENERATED_TIME);
                 eventProperties.put(IdentityEventConstants.EventProperty.OTP_GENERATED_TIME, otpGeneratedTime);
                 long expiryTime = otpGeneratedTime + getOtpValidityPeriod(tenantDomain);
                 eventProperties.put(IdentityEventConstants.EventProperty.OTP_EXPIRY_TIME, expiryTime);
             } else {
-                eventProperties.put(IdentityEventConstants.EventProperty.OTP_STATUS, AuthenticatorConstants.STATUS_CODE_MISMATCH);
+                eventProperties.put(IdentityEventConstants.EventProperty.OTP_STATUS,
+                        AuthenticatorConstants.STATUS_CODE_MISMATCH);
             }
         }
         triggerEvent(IdentityEventConstants.Event.POST_VALIDATE_EMAIL_OTP, authenticatedUser, eventProperties);
@@ -794,7 +805,8 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         try {
             AuthenticatorDataHolder.getIdentityEventService().handleEvent(identityMgtEvent);
         } catch (IdentityEventException e) {
-            throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_TRIGGERING_EVENT, e, eventName, user.getUserName());
+            throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_TRIGGERING_EVENT, e,
+                    eventName, user.getUserName());
         }
     }
 
@@ -878,13 +890,14 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
     private long getUnlockTimeInMilliSeconds(AuthenticatedUser authenticatedUser) throws AuthenticationFailedException {
 
         String username = authenticatedUser.toFullQualifiedUsername();
-        String accountLockedTime = getUserClaimValueFromUserStore(
-                AuthenticatorConstants.Claims.ACCOUNT_UNLOCK_TIME_CLAIM, authenticatedUser,
-                AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_ACCOUNT_UNLOCK_TIME);
+        String accountLockedTime =
+                getUserClaimValueFromUserStore(AuthenticatorConstants.Claims.ACCOUNT_UNLOCK_TIME_CLAIM,
+                        authenticatedUser,
+                        AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_ACCOUNT_UNLOCK_TIME);
         if (StringUtils.isBlank(accountLockedTime)) {
             if (log.isDebugEnabled()) {
-                log.debug(String.format("No value configured for claim: %s for user: %s", AuthenticatorConstants.Claims.ACCOUNT_UNLOCK_TIME_CLAIM,
-                        username));
+                log.debug(String.format("No value configured for claim: %s for user: %s",
+                        AuthenticatorConstants.Claims.ACCOUNT_UNLOCK_TIME_CLAIM, username));
             }
             return 0;
         }
@@ -916,7 +929,8 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
                 log.debug(String.format("Getting the email of the local user: %s in userstore: %s in " +
                         "tenant: %s", user.getUserName(), user.getUserStoreDomain(), user.getTenantDomain()));
             }
-            email = getUserClaimValueFromUserStore(AuthenticatorConstants.Claims.EMAIL_CLAIM, user, AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_EMAIL_ADDRESS);
+            email = getUserClaimValueFromUserStore(AuthenticatorConstants.Claims.EMAIL_CLAIM, user,
+                    AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_EMAIL_ADDRESS);
         }
         return email;
     }
@@ -987,7 +1001,8 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             }
         }
         if (StringUtils.isBlank(emailAttributeKey)) {
-            throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_NO_EMAIL_CLAIM_MAPPINGS, idpName, tenantDomain);
+            throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_NO_EMAIL_CLAIM_MAPPINGS,
+                    idpName, tenantDomain);
         }
         return emailAttributeKey;
     }
@@ -999,12 +1014,14 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             IdentityProvider idp = AuthenticatorDataHolder.getIdpManager().getIdPByName(idpName, tenantDomain);
             if (idp == null) {
                 throw handleAuthErrorScenario(
-                        AuthenticatorConstants.ErrorMessages.ERROR_CODE_INVALID_FEDERATED_AUTHENTICATOR, idpName, tenantDomain);
+                        AuthenticatorConstants.ErrorMessages.ERROR_CODE_INVALID_FEDERATED_AUTHENTICATOR, idpName,
+                        tenantDomain);
             }
             return idp;
         } catch (IdentityProviderManagementException e) {
             throw handleAuthErrorScenario(
-                    AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_FEDERATED_AUTHENTICATOR, idpName, tenantDomain);
+                    AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_FEDERATED_AUTHENTICATOR, idpName,
+                    tenantDomain);
         }
     }
 
@@ -1107,10 +1124,12 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         try {
             userRealm = (AuthenticatorDataHolder.getRealmService()).getTenantUserRealm(tenantId);
         } catch (UserStoreException e) {
-            throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_USER_REALM, e, tenantDomain);
+            throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_USER_REALM, e,
+                    tenantDomain);
         }
         if (userRealm == null) {
-            throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_USER_REALM, tenantDomain);
+            throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_USER_REALM,
+                    tenantDomain);
         }
         return userRealm;
     }
@@ -1222,7 +1241,8 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             if (useOnlyNumericChars) {
                 return AuthenticatorConstants.EMAIL_OTP_NUMERIC_CHAR_SET;
             }
-            return AuthenticatorConstants.EMAIL_OTP_UPPER_CASE_ALPHABET_CHAR_SET + AuthenticatorConstants.EMAIL_OTP_NUMERIC_CHAR_SET;
+            return AuthenticatorConstants.EMAIL_OTP_UPPER_CASE_ALPHABET_CHAR_SET +
+                    AuthenticatorConstants.EMAIL_OTP_NUMERIC_CHAR_SET;
         } catch (EmailOtpAuthenticatorServerException exception) {
             throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_CONFIG);
         }
@@ -1278,10 +1298,11 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
                         "be used", value, tenantDomain, AuthenticatorConstants.DEFAULT_EMAIL_OTP_VALIDITY_IN_MILLIS));
                 return AuthenticatorConstants.DEFAULT_EMAIL_OTP_VALIDITY_IN_MILLIS;
             }
-            // Converting to milli seconds since the config is provided in seconds.
+            // Converting to milliseconds since the config is provided in seconds.
             return validityTime * 1000;
         } catch (EmailOtpAuthenticatorServerException exception) {
-            throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_CONFIG, exception);
+            throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_CONFIG,
+                    exception);
         }
     }
 
@@ -1376,7 +1397,8 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
                     + AuthenticatorConstants.IDF_HANDLER_NAME + ":"
                     + AuthenticatorConstants.LOCAL_AUTHENTICATOR);
         } catch (IOException e) {
-            throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_REDIRECTING_TO_IDF_PAGE);
+            throw handleAuthErrorScenario(
+                    AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_REDIRECTING_TO_IDF_PAGE);
         }
     }
 
