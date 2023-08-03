@@ -18,6 +18,7 @@
 
 package org.wso2.carbon.identity.local.auth.emailotp.util;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.apache.commons.lang.StringUtils;
 import org.owasp.encoder.Encode;
 import org.wso2.carbon.identity.application.authentication.framework.context.AuthenticationContext;
@@ -57,6 +58,7 @@ public class AuthenticatorUtils {
      * @return True if user account is locked.
      * @throws AuthenticationFailedException Exception on authentication failure.
      */
+    @SuppressFBWarnings("FORMAT_STRING_MANIPULATION")
     public static boolean isAccountLocked(AuthenticatedUser user) throws AuthenticationFailedException {
 
         try {
@@ -85,8 +87,9 @@ public class AuthenticatorUtils {
             connectorConfigs = governanceService.getConfiguration(new String[]{key}, tenantDomain);
             return connectorConfigs[0].getValue();
         } catch (IdentityGovernanceException e) {
-            throw handleServerException(AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_CONFIG, e,
-                    (Object) null);
+            throw new EmailOtpAuthenticatorServerException(
+                    AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_CONFIG.getCode(),
+                    AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_CONFIG.getMessage(), e);
         }
     }
 
@@ -134,28 +137,11 @@ public class AuthenticatorUtils {
     }
 
     /**
-     * Get the EmailOtpAuthenticatorServerException with given error details.
-     *
-     * @param error     ErrorMessages.
-     * @param throwable Throwable.
-     * @param data      Meta data.
-     * @return EmailOtpAuthenticatorServerException.
-     */
-    public static EmailOtpAuthenticatorServerException handleServerException(AuthenticatorConstants.ErrorMessages error,
-                                                                             Throwable throwable, Object... data) {
-
-        String message = error.getMessage();
-        if (data != null) {
-            message = String.format(message, data);
-        }
-        return new EmailOtpAuthenticatorServerException(error.getCode(), message, throwable);
-    }
-
-    /**
      * Get the multi option URI query params.
      *
      * @param request HttpServletRequest.
      */
+    @SuppressFBWarnings("SERVLET_PARAMETER")
     public static String getMultiOptionURIQueryParam(HttpServletRequest request) {
 
         String multiOptionURI = "";

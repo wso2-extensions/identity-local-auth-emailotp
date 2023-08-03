@@ -18,6 +18,7 @@
 
 package org.wso2.carbon.identity.local.auth.emailotp.internal;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.wso2.carbon.identity.claim.metadata.mgt.ClaimMetadataManagementService;
 import org.wso2.carbon.identity.event.services.IdentityEventService;
 import org.wso2.carbon.identity.governance.IdentityGovernanceService;
@@ -28,6 +29,7 @@ import org.wso2.carbon.user.core.service.RealmService;
 /**
  * Encapsulates the data of EmailOTP authenticator.
  */
+@SuppressFBWarnings({"MS_EXPOSE_REP", "EI_EXPOSE_STATIC_REP2"})
 public class AuthenticatorDataHolder {
 
     private static RealmService realmService;
