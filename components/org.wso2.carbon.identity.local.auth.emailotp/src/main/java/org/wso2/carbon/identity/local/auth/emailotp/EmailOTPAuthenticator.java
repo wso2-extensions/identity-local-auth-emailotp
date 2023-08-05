@@ -18,12 +18,6 @@
 
 package org.wso2.carbon.identity.local.auth.emailotp;
 
-import org.wso2.carbon.identity.central.log.mgt.utils.LogConstants;
-import org.wso2.carbon.identity.central.log.mgt.utils.LoggerUtils;
-import org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants;
-import org.wso2.carbon.identity.local.auth.emailotp.exception.EmailOtpAuthenticatorServerException;
-import org.wso2.carbon.identity.local.auth.emailotp.internal.AuthenticatorDataHolder;
-import org.wso2.carbon.identity.local.auth.emailotp.util.AuthenticatorUtils;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.math.NumberUtils;
@@ -51,6 +45,8 @@ import org.wso2.carbon.identity.application.common.model.IdentityProvider;
 import org.wso2.carbon.identity.application.common.model.JustInTimeProvisioningConfig;
 import org.wso2.carbon.identity.captcha.connector.recaptcha.EmailOTPCaptchaConnector;
 import org.wso2.carbon.identity.captcha.exception.CaptchaException;
+import org.wso2.carbon.identity.central.log.mgt.utils.LogConstants;
+import org.wso2.carbon.identity.central.log.mgt.utils.LoggerUtils;
 import org.wso2.carbon.identity.claim.metadata.mgt.exception.ClaimMetadataException;
 import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
 import org.wso2.carbon.identity.event.IdentityEventConstants;
