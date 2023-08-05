@@ -18,8 +18,6 @@
 
 package org.wso2.carbon.identity.local.auth.emailotp.internal;
 
-import org.wso2.carbon.identity.local.auth.emailotp.EmailOTPAuthenticator;
-import org.wso2.carbon.identity.local.auth.emailotp.connector.EmailOTPAuthenticatorConfigImpl;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.osgi.framework.BundleContext;
@@ -36,6 +34,8 @@ import org.wso2.carbon.identity.event.services.IdentityEventService;
 import org.wso2.carbon.identity.governance.IdentityGovernanceService;
 import org.wso2.carbon.identity.governance.common.IdentityConnectorConfig;
 import org.wso2.carbon.identity.handler.event.account.lock.service.AccountLockService;
+import org.wso2.carbon.identity.local.auth.emailotp.EmailOTPAuthenticator;
+import org.wso2.carbon.identity.local.auth.emailotp.connector.EmailOTPAuthenticatorConfigImpl;
 import org.wso2.carbon.idp.mgt.IdpManager;
 import org.wso2.carbon.user.core.service.RealmService;
 
