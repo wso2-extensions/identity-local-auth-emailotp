@@ -120,12 +120,23 @@
                 <groupId>org.wso2.carbon.identity.governance</groupId>
                 <artifactId>org.wso2.carbon.identity.captcha</artifactId>
                 <version>${carbon.identity.governance.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>com.google.code.findbugs</groupId>
+                        <artifactId>annotations</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
             <dependency>
                 <groupId>org.mockito</groupId>
                 <artifactId>mockito-inline</artifactId>
                 <scope>test</scope>
                 <version>${mockito-inline.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.github.spotbugs</groupId>
+                <artifactId>spotbugs-annotations</artifactId>
+                <version>${spotbugs-annotations.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -176,14 +187,22 @@
                     </executions>
                 </plugin>
                 <plugin>
-                    <groupId>org.codehaus.mojo</groupId>
-                    <artifactId>findbugs-maven-plugin</artifactId>
-                    <version>${maven.findbugsplugin.version}</version>
+                    <groupId>com.github.spotbugs</groupId>
+                    <artifactId>spotbugs-maven-plugin</artifactId>
+                    <version>${spotbugs-maven-plugin.version}</version>
                     <configuration>
+                        <excludeFilterFile>spotbugs-exclude.xml</excludeFilterFile>
                         <effort>Max</effort>
                         <threshold>Low</threshold>
-                        <xmlOutput>true</xmlOutput>
-                        <findbugsXmlOutputDirectory>${project.build.directory}/findbugs</findbugsXmlOutputDirectory>
+                        <failOnError>true</failOnError>
+                        <maxHeap>1024</maxHeap>
+                        <plugins>
+                            <plugin>
+                                <groupId>com.h3xstream.findsecbugs</groupId>
+                                <artifactId>findsecbugs-plugin</artifactId>
+                                <version>${findsecbugs-plugin.version}</version>
+                            </plugin>
+                        </plugins>
                     </configuration>
                     <executions>
                         <execution>
@@ -250,8 +269,8 @@
                 <artifactId>maven-checkstyle-plugin</artifactId>
             </plugin>
             <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>findbugs-maven-plugin</artifactId>
+                <groupId>com.github.spotbugs</groupId>
+                <artifactId>spotbugs-maven-plugin</artifactId>
             </plugin>
         </plugins>
     </build>
@@ -282,10 +301,13 @@
         <mockito-inline.version>3.8.0</mockito-inline.version>
 
         <maven.checkstyleplugin.version>3.1.0</maven.checkstyleplugin.version>
-        <maven.findbugsplugin.version>3.0.5</maven.findbugsplugin.version>
+        <findsecbugs-plugin.version>1.10.1</findsecbugs-plugin.version>
+        <spotbugs-maven-plugin.version>4.7.2.1</spotbugs-maven-plugin.version>
+
         <maven.bundle.plugin.version>3.2.0</maven.bundle.plugin.version>
         <maven.buildnumber.plugin.version>1.4</maven.buildnumber.plugin.version>
         <jacoco.version>0.8.2</jacoco.version>
         <carbon.p2.plugin.version>1.5.3</carbon.p2.plugin.version>
+        <spotbugs-annotations.version>4.7.3</spotbugs-annotations.version>
     </properties>
 </project>

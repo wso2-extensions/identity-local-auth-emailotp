@@ -18,6 +18,7 @@
 
 package org.wso2.carbon.identity.local.auth.emailotp;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.math.NumberUtils;
@@ -86,6 +87,7 @@ import static org.wso2.carbon.user.core.UserCoreConstants.PRIMARY_DEFAULT_DOMAIN
 /**
  * This class contains the implementation of email OTP authenticator.
  */
+@SuppressFBWarnings("SERVLET_PARAMETER")
 public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         implements LocalApplicationAuthenticator {
 
@@ -104,6 +106,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         return AuthenticatorConstants.EMAIL_OTP_AUTHENTICATOR_NAME;
     }
 
+    @SuppressFBWarnings("SERVLET_SESSION_ID")
     @Override
     public String getContextIdentifier(HttpServletRequest request) {
 
@@ -643,6 +646,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
      * @param context      AuthenticationContext.
      * @throws AuthenticationFailedException If an error occurred while redirecting to email otp login page.
      */
+    @SuppressFBWarnings("UNVALIDATED_REDIRECT")
     private void redirectToEmailOTPLoginPage(String username, String email, String tenantDomain,
                                              HttpServletResponse response, HttpServletRequest request,
                                              AuthenticationContext context)
@@ -844,6 +848,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
      * @param retryParam  The retry param.
      * @throws AuthenticationFailedException If an error occurred.
      */
+    @SuppressFBWarnings("UNVALIDATED_REDIRECT")
     private void redirectToErrorPage(HttpServletRequest request, HttpServletResponse response,
             AuthenticationContext context, String queryParams, String retryParam)
             throws AuthenticationFailedException {
@@ -1306,6 +1311,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         }
     }
 
+    @SuppressFBWarnings("FORMAT_STRING_MANIPULATION")
     private InvalidCredentialsException handleInvalidCredentialsScenario(AuthenticatorConstants.ErrorMessages error,
                                                                          String... data) {
 
@@ -1338,6 +1344,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
      * @param data      Additional data related to the scenario.
      * @return AuthenticationFailedException.
      */
+    @SuppressFBWarnings("FORMAT_STRING_MANIPULATION")
     private AuthenticationFailedException handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages error,
                                                                   Throwable throwable, Object... data) {
 
@@ -1381,6 +1388,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
      * @param response Response
      * @throws AuthenticationFailedException
      */
+    @SuppressFBWarnings("UNVALIDATED_REDIRECT")
     private void redirectUserToIDF(HttpServletResponse response, AuthenticationContext context)
             throws AuthenticationFailedException {
 
