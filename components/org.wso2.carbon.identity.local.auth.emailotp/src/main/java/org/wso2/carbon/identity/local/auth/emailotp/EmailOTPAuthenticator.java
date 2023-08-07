@@ -35,6 +35,7 @@ import org.wso2.carbon.identity.application.authentication.framework.context.Aut
 import org.wso2.carbon.identity.application.authentication.framework.exception.AuthenticationFailedException;
 import org.wso2.carbon.identity.application.authentication.framework.exception.InvalidCredentialsException;
 import org.wso2.carbon.identity.application.authentication.framework.exception.LogoutFailedException;
+import org.wso2.carbon.identity.application.authentication.framework.exception.UserIdNotFoundException;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedIdPData;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedUser;
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants;
@@ -73,6 +74,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -340,8 +342,10 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
                         .inputParams(getApplicationDetails(context))
                         .inputParam(LogConstants.InputKeys.USER, LoggerUtils.isLogMaskingEnable ?
                                 LoggerUtils.getMaskedContent(authenticatedUserFromContext.getUserName()) :
-                                authenticatedUserFromContext.getUserName())
-                        .inputParam(LogConstants.InputKeys.USER_ID, authenticatedUserFromContext.getLoggableUserId());
+                                authenticatedUserFromContext.getUserName());
+                Optional<String> optionalUserId = getUserId(authenticatedUserFromContext);
+                optionalUserId.ifPresent(userId -> diagnosticLogBuilder.inputParam(LogConstants.InputKeys.USER_ID,
+                        userId));
                 LoggerUtils.triggerDiagnosticLogEvent(diagnosticLogBuilder);
             }
             return;
@@ -689,11 +693,10 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
                     .inputParam(LogConstants.InputKeys.USER, LoggerUtils.isLogMaskingEnable ?
                             LoggerUtils.getMaskedContent(authenticatedUser.getUserName()) :
                             authenticatedUser.getUserName())
-                    .inputParam(LogConstants.InputKeys.USER_ID, authenticatedUser.getLoggableUserId())
-                    .inputParam("scenario", scenario.name());
-            if (context.getSequenceConfig().getApplicationConfig() != null) {
-                diagnosticLogBuilder.inputParams(getApplicationDetails(context));
-            }
+                    .inputParam("scenario", scenario.name())
+                    .inputParams(getApplicationDetails(context));
+            Optional<String> optionalUserId = getUserId(authenticatedUser);
+            optionalUserId.ifPresent(userId -> diagnosticLogBuilder.inputParam(LogConstants.InputKeys.USER_ID, userId));
             LoggerUtils.triggerDiagnosticLogEvent(diagnosticLogBuilder);
         }
     }
@@ -1610,5 +1613,28 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
                 applicationDetailsMap.put(LogConstants.InputKeys.APPLICATION_NAME,
                         applicationName));
         return applicationDetailsMap;
+    }
+
+    /**
+     * Get the user id from the authenticated user.
+     *
+     * @param authenticatedUser AuthenticationContext.
+     * @return User id.
+     */
+    private Optional<String> getUserId(AuthenticatedUser authenticatedUser) {
+
+        if (authenticatedUser == null) {
+            return Optional.empty();
+        }
+        try {
+            if (authenticatedUser.getUserId() != null) {
+                return Optional.ofNullable(authenticatedUser.getUserId());
+            }
+        } catch (UserIdNotFoundException e) {
+            if (log.isDebugEnabled()) {
+                log.debug("Error while getting the user id from the authenticated user.", e);
+            }
+        }
+        return Optional.empty();
     }
 }
