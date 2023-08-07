@@ -139,7 +139,7 @@ public class EmailOTPAuthenticatorTest {
         captchaUtil = mockStatic(CaptchaUtil.class);
         userCoreUtil = mockStatic(UserCoreUtil.class, Mockito.CALLS_REAL_METHODS);
 
-        when(LoggerUtils.isDiagnosticLogsEnabled()).thenReturn(false);
+        when(LoggerUtils.isDiagnosticLogsEnabled()).thenReturn(true);
         when(IdentityTenantUtil.getTenantId(TENANT_DOMAIN)).thenReturn(TENANT_ID);
         when(frameworkServiceDataHolder.getMultiAttributeLoginService()).thenReturn(multiAttributeLoginService);
         when(multiAttributeLoginService.isEnabled(TENANT_DOMAIN)).thenReturn(false);
