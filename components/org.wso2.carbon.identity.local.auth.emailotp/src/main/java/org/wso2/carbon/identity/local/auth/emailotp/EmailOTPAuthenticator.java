@@ -1618,23 +1618,20 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
     /**
      * Get the user id from the authenticated user.
      *
-     * @param authenticatedUser AuthenticationContext.
+     * @param authenticatedUser AuthenticatedUser.
      * @return User id.
      */
     private Optional<String> getUserId(AuthenticatedUser authenticatedUser) {
 
-        if (authenticatedUser == null) {
-            return Optional.empty();
-        }
-        try {
-            if (authenticatedUser.getUserId() != null) {
-                return Optional.ofNullable(authenticatedUser.getUserId());
+        return Optional.ofNullable(authenticatedUser).map(user -> {
+            try {
+                return user.getUserId();
+            } catch (UserIdNotFoundException e) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Error while getting the user id from the authenticated user.", e);
+                }
+                return null;
             }
-        } catch (UserIdNotFoundException e) {
-            if (log.isDebugEnabled()) {
-                log.debug("Error while getting the user id from the authenticated user.", e);
-            }
-        }
-        return Optional.empty();
+        });
     }
 }
