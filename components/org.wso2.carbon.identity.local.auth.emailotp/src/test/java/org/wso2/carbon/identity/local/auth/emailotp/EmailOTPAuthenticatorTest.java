@@ -43,6 +43,7 @@ import org.wso2.carbon.identity.governance.IdentityGovernanceService;
 import org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants;
 import org.wso2.carbon.identity.local.auth.emailotp.internal.AuthenticatorDataHolder;
 import org.wso2.carbon.identity.local.auth.emailotp.util.AuthenticatorUtils;
+import org.wso2.carbon.identity.multi.attribute.login.mgt.MultiAttributeLoginService;
 import org.wso2.carbon.user.core.UserRealm;
 import org.wso2.carbon.user.core.common.AbstractUserStoreManager;
 import org.wso2.carbon.user.core.common.User;
@@ -92,6 +93,7 @@ public class EmailOTPAuthenticatorTest {
     private ClaimMetadataManagementService claimMetadataManagementService;
     private IdentityGovernanceService identityGovernanceService;
     private CaptchaDataHolder captchaDataHolder;
+    private MultiAttributeLoginService multiAttributeLoginService;
 
     private static final String USERNAME = "abc@gmail.com";
     private static final String EMAIL_ADDRESS = "abc@gmail.com";
@@ -122,6 +124,7 @@ public class EmailOTPAuthenticatorTest {
         claimMetadataManagementService = mock(ClaimMetadataManagementService.class);
         identityGovernanceService = mock(IdentityGovernanceService.class);
         captchaDataHolder = mock(CaptchaDataHolder.class);
+        multiAttributeLoginService = mock(MultiAttributeLoginService.class);
 
         staticConfigurationFacade = mockStatic(ConfigurationFacade.class);
         frameworkUtils = mockStatic(FrameworkUtils.class);
@@ -196,7 +199,7 @@ public class EmailOTPAuthenticatorTest {
         when(userStoreManager.getUserClaimValues(any(), any(), any())).thenReturn(claimMap);
         when(fileBasedConfigurationBuilder.getAuthenticatorBean(anyString())).thenReturn(authenticatorConfig);
         userCoreUtil.when(UserCoreUtil::getDomainFromThreadLocal).thenReturn(DEFAULT_USER_STORE);
-
+        mockMultiAttributeLoginService();
         status = emailOTPAuthenticator.process(httpServletRequest, httpServletResponse, context);
         Assert.assertEquals(status, AuthenticatorFlowStatus.INCOMPLETE);
         Assert.assertTrue((Boolean.parseBoolean(String.valueOf(context.getProperty(
@@ -236,6 +239,7 @@ public class EmailOTPAuthenticatorTest {
         when(FrameworkUtils.preprocessUsername(USERNAME, context)).thenReturn(USERNAME + "@" + TENANT_DOMAIN);
         when(CaptchaDataHolder.getInstance()).thenReturn(captchaDataHolder);
         AuthenticatorDataHolder.setIdentityGovernanceService(identityGovernanceService);
+        mockMultiAttributeLoginService();
 
         AuthenticatorFlowStatus status = emailOTPAuthenticator.process(httpServletRequest, httpServletResponse,
                 context);
@@ -271,6 +275,12 @@ public class EmailOTPAuthenticatorTest {
         ApplicationConfig applicationConfig = mock(ApplicationConfig.class);
         when(applicationConfig.isSaaSApp()).thenReturn(false);
         context.getSequenceConfig().setApplicationConfig(applicationConfig);
+    }
+
+    private void mockMultiAttributeLoginService() {
+        when(FrameworkServiceDataHolder.getInstance()).thenReturn(frameworkServiceDataHolder);
+        when(frameworkServiceDataHolder.getMultiAttributeLoginService()).thenReturn(multiAttributeLoginService);
+        when(multiAttributeLoginService.isEnabled(anyString())).thenReturn(false);
     }
 
     @AfterMethod

@@ -181,11 +181,10 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             }
         } else {
             if (isPreviousIdPAuthenticationFlowHandler(context)) {
-                user = getUser(authenticatedUserFromContext);
-                if (user != null) {
-                    authenticatedUserFromContext = new AuthenticatedUser(user);
-                } else {
-                    authenticatedUserFromContext = null;
+                boolean isUserResolved = FrameworkUtils.getIsUserResolved(context);
+                if (!isUserResolved) {
+                    // If the user is not resolved, we need to resolve the user.
+                    authenticatedUserFromContext = resolveUserFromUserStore(authenticatedUserFromContext);
                 }
             }
         }
@@ -238,6 +237,19 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         }
         redirectToEmailOTPLoginPage(authenticatedUserFromContext.getUserName(), email, applicationTenantDomain,
                 response, request, context);
+    }
+
+    private AuthenticatedUser resolveUserFromUserStore(AuthenticatedUser authenticatedUserFromContext)
+            throws AuthenticationFailedException {
+
+        User user;
+        user = getUser(authenticatedUserFromContext);
+        if (user != null) {
+            authenticatedUserFromContext = new AuthenticatedUser(user);
+        } else {
+            authenticatedUserFromContext = null;
+        }
+        return authenticatedUserFromContext;
     }
 
     @Override
