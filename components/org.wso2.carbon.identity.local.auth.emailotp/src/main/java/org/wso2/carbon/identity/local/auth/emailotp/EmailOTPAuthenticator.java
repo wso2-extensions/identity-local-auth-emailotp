@@ -239,17 +239,16 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
                 response, request, context);
     }
 
-    private AuthenticatedUser resolveUserFromUserStore(AuthenticatedUser authenticatedUserFromContext)
+    private AuthenticatedUser resolveUserFromUserStore(AuthenticatedUser authenticatedUser)
             throws AuthenticationFailedException {
 
-        User user;
-        user = getUser(authenticatedUserFromContext);
+        User user = getUser(authenticatedUser);
         if (user != null) {
-            authenticatedUserFromContext = new AuthenticatedUser(user);
+            authenticatedUser = new AuthenticatedUser(user);
         } else {
-            authenticatedUserFromContext = null;
+            authenticatedUser = null;
         }
-        return authenticatedUserFromContext;
+        return authenticatedUser;
     }
 
     @Override
