@@ -119,7 +119,7 @@ public class AuthenticatorConstants {
 
             public static final String SEND_EMAIL_OTP = "send-email-otp";
             public static final String PROCESS_AUTHENTICATION_RESPONSE = "process-email-otp-authentication-response";
-            public static final String VALIDATE_EMAIL_OTP_REQUEST = "validate-email-otp-authentication-request";
+            public static final String INITIATE_EMAIL_OTP_REQUEST = "initiate-email-otp-authentication-request";
         }
     }
 

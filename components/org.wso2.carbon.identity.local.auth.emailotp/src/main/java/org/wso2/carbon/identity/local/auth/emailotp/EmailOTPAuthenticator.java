@@ -86,8 +86,8 @@ import static org.wso2.carbon.identity.event.IdentityEventConstants.EventPropert
 import static org.wso2.carbon.identity.event.IdentityEventConstants.EventProperty.USER_STORE_MANAGER;
 import static org.wso2.carbon.identity.event.handler.notification.NotificationConstants.ARBITRARY_SEND_TO;
 import static org.wso2.carbon.identity.event.handler.notification.NotificationConstants.EmailNotification.EMAIL_TEMPLATE_TYPE;
+import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.LogConstants.ActionIDs.INITIATE_EMAIL_OTP_REQUEST;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.LogConstants.ActionIDs.PROCESS_AUTHENTICATION_RESPONSE;
-import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.LogConstants.ActionIDs.VALIDATE_EMAIL_OTP_REQUEST;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.LogConstants.EMAIL_OTP_SERVICE;
 import static org.wso2.carbon.user.core.UserCoreConstants.PRIMARY_DEFAULT_DOMAIN_NAME;
 
@@ -171,8 +171,8 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         User user;
         if (LoggerUtils.isDiagnosticLogsEnabled()) {
             DiagnosticLog.DiagnosticLogBuilder diagnosticLogBuilder = new DiagnosticLog.DiagnosticLogBuilder(
-                    EMAIL_OTP_SERVICE, VALIDATE_EMAIL_OTP_REQUEST);
-            diagnosticLogBuilder.resultMessage("Validate email otp authentication request.")
+                    EMAIL_OTP_SERVICE, INITIATE_EMAIL_OTP_REQUEST);
+            diagnosticLogBuilder.resultMessage("Initiate email otp authentication request.")
                     .logDetailLevel(DiagnosticLog.LogDetailLevel.APPLICATION)
                     .resultStatus(DiagnosticLog.ResultStatus.SUCCESS)
                     .inputParam(LogConstants.InputKeys.STEP, context.getCurrentStep())
@@ -1589,7 +1589,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
     private void publishInitiateAuthRedirectionDiagnosticLogs(String resultMessage,
                                                               AuthenticationContext context, String url) {
         DiagnosticLog.DiagnosticLogBuilder diagnosticLogBuilder = new DiagnosticLog.DiagnosticLogBuilder(
-                EMAIL_OTP_SERVICE, PROCESS_AUTHENTICATION_RESPONSE);
+                EMAIL_OTP_SERVICE, INITIATE_EMAIL_OTP_REQUEST);
         diagnosticLogBuilder.resultMessage(resultMessage)
                 .logDetailLevel(DiagnosticLog.LogDetailLevel.APPLICATION)
                 .resultStatus(DiagnosticLog.ResultStatus.SUCCESS)
@@ -1627,9 +1627,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             try {
                 return user.getUserId();
             } catch (UserIdNotFoundException e) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Error while getting the user id from the authenticated user.", e);
-                }
+                log.debug("Error while getting the user id from the authenticated user.", e);
                 return null;
             }
         });
