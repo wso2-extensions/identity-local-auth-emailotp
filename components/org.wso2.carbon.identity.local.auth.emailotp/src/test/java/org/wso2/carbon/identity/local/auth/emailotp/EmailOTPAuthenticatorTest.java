@@ -36,6 +36,7 @@ import org.wso2.carbon.identity.application.authentication.framework.internal.Fr
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkUtils;
 import org.wso2.carbon.identity.captcha.internal.CaptchaDataHolder;
 import org.wso2.carbon.identity.captcha.util.CaptchaUtil;
+import org.wso2.carbon.identity.central.log.mgt.utils.LoggerUtils;
 import org.wso2.carbon.identity.claim.metadata.mgt.ClaimMetadataManagementService;
 import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
 import org.wso2.carbon.identity.event.services.IdentityEventService;
@@ -43,6 +44,7 @@ import org.wso2.carbon.identity.governance.IdentityGovernanceService;
 import org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants;
 import org.wso2.carbon.identity.local.auth.emailotp.internal.AuthenticatorDataHolder;
 import org.wso2.carbon.identity.local.auth.emailotp.util.AuthenticatorUtils;
+import org.wso2.carbon.identity.multi.attribute.login.mgt.MultiAttributeLoginService;
 import org.wso2.carbon.user.core.UserRealm;
 import org.wso2.carbon.user.core.common.AbstractUserStoreManager;
 import org.wso2.carbon.user.core.common.User;
@@ -74,6 +76,7 @@ public class EmailOTPAuthenticatorTest {
     private HttpServletResponse httpServletResponse;
     private AuthenticationContext context;
     private ConfigurationFacade configurationFacade;
+    private MultiAttributeLoginService multiAttributeLoginService;
     private MockedStatic<ConfigurationFacade> staticConfigurationFacade;
     private MockedStatic<FrameworkUtils> frameworkUtils;
     private MockedStatic<IdentityTenantUtil> identityTenantUtil;
@@ -85,6 +88,7 @@ public class EmailOTPAuthenticatorTest {
     private MockedStatic<CaptchaDataHolder> staticCaptchaDataHolder;
     private MockedStatic<CaptchaUtil> captchaUtil;
     private MockedStatic<UserCoreUtil> userCoreUtil;
+    private MockedStatic<LoggerUtils> mockLoggerUtils;
     private RealmService realmService;
     private UserRealm userRealm;
     private AbstractUserStoreManager userStoreManager;
@@ -122,16 +126,23 @@ public class EmailOTPAuthenticatorTest {
         claimMetadataManagementService = mock(ClaimMetadataManagementService.class);
         identityGovernanceService = mock(IdentityGovernanceService.class);
         captchaDataHolder = mock(CaptchaDataHolder.class);
+        multiAttributeLoginService = mock(MultiAttributeLoginService.class);
 
         staticConfigurationFacade = mockStatic(ConfigurationFacade.class);
         frameworkUtils = mockStatic(FrameworkUtils.class);
         identityTenantUtil = mockStatic(IdentityTenantUtil.class);
+        mockLoggerUtils = mockStatic(LoggerUtils.class);
         staticFileBasedConfigurationBuilder = mockStatic(FileBasedConfigurationBuilder.class);
         staticFrameworkServiceDataHolder = mockStatic(FrameworkServiceDataHolder.class);
         authenticatorUtils = mockStatic(AuthenticatorUtils.class);
         staticCaptchaDataHolder = mockStatic(CaptchaDataHolder.class);
         captchaUtil = mockStatic(CaptchaUtil.class);
         userCoreUtil = mockStatic(UserCoreUtil.class, Mockito.CALLS_REAL_METHODS);
+
+        when(LoggerUtils.isDiagnosticLogsEnabled()).thenReturn(true);
+        when(IdentityTenantUtil.getTenantId(TENANT_DOMAIN)).thenReturn(TENANT_ID);
+        when(frameworkServiceDataHolder.getMultiAttributeLoginService()).thenReturn(multiAttributeLoginService);
+        when(multiAttributeLoginService.isEnabled(TENANT_DOMAIN)).thenReturn(false);
     }
 
     @Test(description = "Test case for canHandle() method false case.")
@@ -182,7 +193,6 @@ public class EmailOTPAuthenticatorTest {
         AuthenticatorDataHolder.setIdentityGovernanceService(identityGovernanceService);
 
         when(FrameworkUtils.preprocessUsername(USERNAME, context)).thenReturn(USERNAME + "@" + TENANT_DOMAIN);
-        when(IdentityTenantUtil.getTenantId(TENANT_DOMAIN)).thenReturn(TENANT_ID);
         when(FileBasedConfigurationBuilder.getInstance()).thenReturn(fileBasedConfigurationBuilder);
         when(AuthenticatorUtils.isAccountLocked(any())).thenReturn(false);
         when(CaptchaDataHolder.getInstance()).thenReturn(captchaDataHolder);
@@ -285,5 +295,6 @@ public class EmailOTPAuthenticatorTest {
         staticCaptchaDataHolder.close();
         captchaUtil.close();
         userCoreUtil.close();
+        mockLoggerUtils.close();
     }
 }
