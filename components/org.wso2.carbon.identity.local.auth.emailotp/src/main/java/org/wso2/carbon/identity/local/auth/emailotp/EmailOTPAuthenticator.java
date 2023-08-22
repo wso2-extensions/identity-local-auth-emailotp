@@ -910,7 +910,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         }
         // Locked reason.
         String lockedReason = getLockedReason(authenticatedUser);
-        if (StringUtils.isNotEmpty(lockedReason)) {
+        if (StringUtils.isNotBlank(lockedReason)) {
             queryParams += AuthenticatorConstants.LOCKED_REASON_QUERY_PARAM + lockedReason;
         }
         queryParams += AuthenticatorConstants.ERROR_CODE_QUERY_PARAM + USER_IS_LOCKED;
