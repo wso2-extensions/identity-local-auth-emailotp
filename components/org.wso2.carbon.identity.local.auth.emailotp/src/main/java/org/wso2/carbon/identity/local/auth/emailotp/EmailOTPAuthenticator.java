@@ -90,6 +90,7 @@ import static org.wso2.carbon.identity.event.handler.notification.NotificationCo
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.LogConstants.ActionIDs.INITIATE_EMAIL_OTP_REQUEST;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.LogConstants.ActionIDs.PROCESS_AUTHENTICATION_RESPONSE;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.LogConstants.EMAIL_OTP_SERVICE;
+import static org.wso2.carbon.user.core.UserCoreConstants.ErrorCode.USER_IS_LOCKED;
 import static org.wso2.carbon.user.core.UserCoreConstants.PRIMARY_DEFAULT_DOMAIN_NAME;
 
 /**
@@ -907,6 +908,12 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         if (timeToUnlock > 0) {
             queryParams += AuthenticatorConstants.UNLOCK_QUERY_PARAM + Math.round((double) timeToUnlock / 1000 / 60);
         }
+        // Locked reason.
+        String lockedReason = getLockedReason(authenticatedUser);
+        if (StringUtils.isNotEmpty(lockedReason)) {
+            queryParams += AuthenticatorConstants.LOCKED_REASON_QUERY_PARAM + lockedReason;
+        }
+        queryParams += AuthenticatorConstants.ERROR_CODE_QUERY_PARAM + USER_IS_LOCKED;
         retryParam = AuthenticatorConstants.ERROR_USER_ACCOUNT_LOCKED_QUERY_PARAMS;
         redirectToErrorPage(request, response, context, queryParams, retryParam);
         if (LoggerUtils.isDiagnosticLogsEnabled()) {
@@ -982,6 +989,19 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             return 0;
         }
         return Long.parseLong(accountLockedTime);
+    }
+
+    private String getLockedReason(AuthenticatedUser authenticatedUser) throws AuthenticationFailedException {
+
+        String username = authenticatedUser.toFullQualifiedUsername();
+        String lockedReason = getUserClaimValueFromUserStore(
+                AuthenticatorConstants.Claims.ACCOUNT_LOCKED_REASON_CLAIM, authenticatedUser,
+                AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_ACCOUNT_UNLOCK_TIME);
+        if (StringUtils.isBlank(lockedReason) && (log.isDebugEnabled())) {
+            log.debug(String.format("No value configured for claim: %s for user: %s",
+                    AuthenticatorConstants.Claims.ACCOUNT_LOCKED_REASON_CLAIM, username));
+        }
+        return lockedReason;
     }
 
     /**
