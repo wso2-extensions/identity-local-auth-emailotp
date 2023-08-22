@@ -741,7 +741,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             response.sendRedirect(url);
             context.setProperty(AuthenticatorConstants.IS_REDIRECT_TO_EMAIL_OTP, "true");
             if (LoggerUtils.isDiagnosticLogsEnabled()) {
-                publishInitiateAuthRedirectionDiagnosticLogs("Redirecting to email otp login page.", context, url);
+                publishInitiateAuthRedirectionDiagnosticLogs("Redirecting to email otp login page.", context);
             }
         } catch (IOException e) {
             throw handleAuthErrorScenario(
@@ -906,7 +906,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         retryParam = AuthenticatorConstants.ERROR_USER_ACCOUNT_LOCKED_QUERY_PARAMS;
         redirectToErrorPage(request, response, context, queryParams, retryParam);
         if (LoggerUtils.isDiagnosticLogsEnabled()) {
-            publishInitiateAuthRedirectionDiagnosticLogs("Redirecting to error page.", context, queryParams);
+            publishInitiateAuthRedirectionDiagnosticLogs("Redirecting to error page.", context);
         }
     }
 
@@ -1472,7 +1472,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             response.sendRedirect(redirectURL);
             if (LoggerUtils.isDiagnosticLogsEnabled()) {
                 publishInitiateAuthRedirectionDiagnosticLogs("Redirecting to identifier first flow since no " +
-                        "authenticated user was found", context, redirectURL);
+                        "authenticated user was found", context);
             }
         } catch (IOException e) {
             throw handleAuthErrorScenario(
@@ -1586,15 +1586,14 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         return (context.getCurrentStep() == 1 || isPreviousIdPAuthenticationFlowHandler(context));
     }
 
-    private void publishInitiateAuthRedirectionDiagnosticLogs(String resultMessage,
-                                                              AuthenticationContext context, String url) {
+    private void publishInitiateAuthRedirectionDiagnosticLogs(String resultMessage, AuthenticationContext context) {
+
         DiagnosticLog.DiagnosticLogBuilder diagnosticLogBuilder = new DiagnosticLog.DiagnosticLogBuilder(
                 EMAIL_OTP_SERVICE, INITIATE_EMAIL_OTP_REQUEST);
         diagnosticLogBuilder.resultMessage(resultMessage)
                 .logDetailLevel(DiagnosticLog.LogDetailLevel.APPLICATION)
                 .resultStatus(DiagnosticLog.ResultStatus.SUCCESS)
                 .inputParam(LogConstants.InputKeys.STEP, context.getCurrentStep())
-                .inputParam(LogConstants.InputKeys.REDIREDCT_URI, url)
                 .inputParams(getApplicationDetails(context));
         LoggerUtils.triggerDiagnosticLogEvent(diagnosticLogBuilder);
     }
