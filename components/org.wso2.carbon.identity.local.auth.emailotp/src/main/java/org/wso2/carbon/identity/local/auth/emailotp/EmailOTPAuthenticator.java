@@ -175,7 +175,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         if (LoggerUtils.isDiagnosticLogsEnabled()) {
             DiagnosticLog.DiagnosticLogBuilder diagnosticLogBuilder = new DiagnosticLog.DiagnosticLogBuilder(
                     EMAIL_OTP_SERVICE, INITIATE_EMAIL_OTP_REQUEST);
-            diagnosticLogBuilder.resultMessage("Initiate email otp authentication request.")
+            diagnosticLogBuilder.resultMessage("Initiating email otp authentication request.")
                     .logDetailLevel(DiagnosticLog.LogDetailLevel.APPLICATION)
                     .resultStatus(DiagnosticLog.ResultStatus.SUCCESS)
                     .inputParam(LogConstants.InputKeys.STEP, context.getCurrentStep())
@@ -1606,7 +1606,8 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         LoggerUtils.triggerDiagnosticLogEvent(diagnosticLogBuilder);
     }
 
-    /** Add application details to a map.
+    /**
+     * Add application details to a map.
      *
      * @param context AuthenticationContext.
      * @return Map with application details.
