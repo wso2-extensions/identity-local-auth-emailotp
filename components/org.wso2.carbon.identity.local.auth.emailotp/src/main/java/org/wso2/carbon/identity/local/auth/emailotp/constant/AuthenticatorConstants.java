@@ -63,6 +63,8 @@ public class AuthenticatorConstants {
             "&authFailure=true&authFailureMsg=user.account.locked";
     public static final String SCREEN_VALUE_QUERY_PARAM = "&screenValue=";
     public static final String UNLOCK_QUERY_PARAM = "&unlockTime=";
+    public static final String LOCKED_REASON_QUERY_PARAM = "&lockedReason=";
+    public static final String ERROR_CODE_QUERY_PARAM = "&errorCode=";
     public static final String RESEND_CODE_PARAM = "&resendCode=true";
     public static final String MULTI_OPTION_QUERY_PARAM = "multiOptionURI";
 
@@ -100,6 +102,7 @@ public class AuthenticatorConstants {
 
         public static final String EMAIL_CLAIM = "http://wso2.org/claims/emailaddress";
         public static final String ACCOUNT_UNLOCK_TIME_CLAIM = "http://wso2.org/claims/identity/unlockTime";
+        public static final String ACCOUNT_LOCKED_REASON_CLAIM = "http://wso2.org/claims/identity/lockedReason";
         public static final String OTP_BACKUP_CODES_CLAIM = "http://wso2.org/claims/identity/otpbackupcodes";
         public static final String EMAIL_OTP_FAILED_ATTEMPTS_CLAIM =
                 "http://wso2.org/claims/identity/failedEmailOtpAttempts";
