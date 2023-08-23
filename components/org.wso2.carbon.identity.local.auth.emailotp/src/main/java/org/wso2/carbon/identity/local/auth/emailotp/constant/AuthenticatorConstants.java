@@ -106,6 +106,24 @@ public class AuthenticatorConstants {
     }
 
     /**
+     * Constants related to log management.
+     */
+    public static class LogConstants {
+
+        public static final String EMAIL_OTP_SERVICE = "local-auth-emailotp";
+
+        /**
+         * Define action IDs for diagnostic logs.
+         */
+        public static class ActionIDs {
+
+            public static final String SEND_EMAIL_OTP = "send-email-otp";
+            public static final String PROCESS_AUTHENTICATION_RESPONSE = "process-email-otp-authentication-response";
+            public static final String INITIATE_EMAIL_OTP_REQUEST = "initiate-email-otp-authentication-request";
+        }
+    }
+
+    /**
      * Authentication flow scenarios associated with the authenticator.
      */
     public enum AuthenticationScenarios {
