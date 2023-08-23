@@ -96,7 +96,6 @@ public class EmailOTPAuthenticatorTest {
     private ClaimMetadataManagementService claimMetadataManagementService;
     private IdentityGovernanceService identityGovernanceService;
     private CaptchaDataHolder captchaDataHolder;
-    private MultiAttributeLoginService multiAttributeLoginService;
 
     private static final String USERNAME = "abc@gmail.com";
     private static final String EMAIL_ADDRESS = "abc@gmail.com";
@@ -105,11 +104,6 @@ public class EmailOTPAuthenticatorTest {
     private static final String USER_STORE_DOMAIN = "PRIMARY";
     private static final String DEFAULT_USER_STORE = "DEFAULT";
     private static final String DUMMY_LOGIN_PAGE_URL = "dummyLoginPageURL";
-    private static final String DUMMY_OTP_PAGE_URL = "dummyOTPPageURL";
-    private static final String RECAPTCHA_PARAM = "&reCaptcha=true";
-    private static final String DUMMY_SESSION_DATA_KEY = "dummySessionDataKey";
-    private static final String SSO_LOGIN_RECAPTCHA_ENABLE_ALWAYS = "sso.login.recaptcha.enable.always";
-    private static final String SSO_LOGIN_RECAPTCHA_ENABLE = "sso.login.recaptcha.enable";
 
     @BeforeMethod
     public void setUp() {
