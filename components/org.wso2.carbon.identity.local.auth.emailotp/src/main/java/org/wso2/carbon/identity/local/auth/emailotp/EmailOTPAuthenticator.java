@@ -211,7 +211,8 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
                 boolean isUserResolved = FrameworkUtils.getIsUserResolved(context);
                 if (!isUserResolved) {
                     // If the user is not resolved, we need to resolve the user.
-                    authenticatedUserFromContext = resolveUserFromUserStore(authenticatedUserFromContext).get();;
+                    authenticatedUserFromContext = resolveUserFromUserStore(authenticatedUserFromContext)
+                            .orElse(null);
                 }
             }
         }
