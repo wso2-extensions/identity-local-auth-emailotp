@@ -211,7 +211,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
                 boolean isUserResolved = FrameworkUtils.getIsUserResolved(context);
                 if (!isUserResolved) {
                     // If the user is not resolved, we need to resolve the user.
-                    authenticatedUserFromContext = resolveUserFromUserStore(authenticatedUserFromContext);
+                    authenticatedUserFromContext = resolveUserFromUserStore(authenticatedUserFromContext).get();;
                 }
             }
         }
@@ -266,16 +266,11 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
                 response, request, context);
     }
 
-    private AuthenticatedUser resolveUserFromUserStore(AuthenticatedUser authenticatedUser)
+    private Optional<AuthenticatedUser> resolveUserFromUserStore(AuthenticatedUser authenticatedUser)
             throws AuthenticationFailedException {
 
-        User user = getUser(authenticatedUser);
-        if (user != null) {
-            authenticatedUser = new AuthenticatedUser(user);
-        } else {
-            authenticatedUser = null;
-        }
-        return authenticatedUser;
+        return Optional.ofNullable(getUser(authenticatedUser))
+                .map(AuthenticatedUser::new);
     }
 
     @Override

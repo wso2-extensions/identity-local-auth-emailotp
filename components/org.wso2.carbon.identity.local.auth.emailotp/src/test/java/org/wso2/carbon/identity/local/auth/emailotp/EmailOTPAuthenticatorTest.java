@@ -280,6 +280,7 @@ public class EmailOTPAuthenticatorTest {
     }
 
     private void mockMultiAttributeLoginService() {
+
         when(FrameworkServiceDataHolder.getInstance()).thenReturn(frameworkServiceDataHolder);
         when(frameworkServiceDataHolder.getMultiAttributeLoginService()).thenReturn(multiAttributeLoginService);
         when(multiAttributeLoginService.isEnabled(anyString())).thenReturn(false);
