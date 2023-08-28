@@ -104,11 +104,6 @@ public class EmailOTPAuthenticatorTest {
     private static final String USER_STORE_DOMAIN = "PRIMARY";
     private static final String DEFAULT_USER_STORE = "DEFAULT";
     private static final String DUMMY_LOGIN_PAGE_URL = "dummyLoginPageURL";
-    private static final String DUMMY_OTP_PAGE_URL = "dummyOTPPageURL";
-    private static final String RECAPTCHA_PARAM = "&reCaptcha=true";
-    private static final String DUMMY_SESSION_DATA_KEY = "dummySessionDataKey";
-    private static final String SSO_LOGIN_RECAPTCHA_ENABLE_ALWAYS = "sso.login.recaptcha.enable.always";
-    private static final String SSO_LOGIN_RECAPTCHA_ENABLE = "sso.login.recaptcha.enable";
 
     @BeforeMethod
     public void setUp() {
@@ -206,7 +201,7 @@ public class EmailOTPAuthenticatorTest {
         when(userStoreManager.getUserClaimValues(any(), any(), any())).thenReturn(claimMap);
         when(fileBasedConfigurationBuilder.getAuthenticatorBean(anyString())).thenReturn(authenticatorConfig);
         userCoreUtil.when(UserCoreUtil::getDomainFromThreadLocal).thenReturn(DEFAULT_USER_STORE);
-
+        mockMultiAttributeLoginService();
         status = emailOTPAuthenticator.process(httpServletRequest, httpServletResponse, context);
         Assert.assertEquals(status, AuthenticatorFlowStatus.INCOMPLETE);
         Assert.assertTrue((Boolean.parseBoolean(String.valueOf(context.getProperty(
@@ -246,6 +241,7 @@ public class EmailOTPAuthenticatorTest {
         when(FrameworkUtils.preprocessUsername(USERNAME, context)).thenReturn(USERNAME + "@" + TENANT_DOMAIN);
         when(CaptchaDataHolder.getInstance()).thenReturn(captchaDataHolder);
         AuthenticatorDataHolder.setIdentityGovernanceService(identityGovernanceService);
+        mockMultiAttributeLoginService();
 
         AuthenticatorFlowStatus status = emailOTPAuthenticator.process(httpServletRequest, httpServletResponse,
                 context);
@@ -281,6 +277,13 @@ public class EmailOTPAuthenticatorTest {
         ApplicationConfig applicationConfig = mock(ApplicationConfig.class);
         when(applicationConfig.isSaaSApp()).thenReturn(false);
         context.getSequenceConfig().setApplicationConfig(applicationConfig);
+    }
+
+    private void mockMultiAttributeLoginService() {
+
+        when(FrameworkServiceDataHolder.getInstance()).thenReturn(frameworkServiceDataHolder);
+        when(frameworkServiceDataHolder.getMultiAttributeLoginService()).thenReturn(multiAttributeLoginService);
+        when(multiAttributeLoginService.isEnabled(anyString())).thenReturn(false);
     }
 
     @AfterMethod
