@@ -124,6 +124,16 @@ public class AuthenticatorConstants {
             public static final String PROCESS_AUTHENTICATION_RESPONSE = "process-email-otp-authentication-response";
             public static final String INITIATE_EMAIL_OTP_REQUEST = "initiate-email-otp-authentication-request";
         }
+
+        /**
+         * Define common and reusable Input keys for diagnostic logs.
+         */
+        public static class InputKeys {
+
+            private InputKeys() {
+            }
+            public static final String EMAIL_TO = "email to";
+        }
     }
 
     /**
