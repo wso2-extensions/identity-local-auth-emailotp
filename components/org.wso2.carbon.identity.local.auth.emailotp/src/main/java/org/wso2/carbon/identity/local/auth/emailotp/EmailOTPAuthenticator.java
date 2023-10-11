@@ -887,6 +887,24 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         }
         Event identityMgtEvent = new Event(eventName, properties);
         try {
+            String receiver = (String) properties.get("send-to");
+            if (LoggerUtils.isDiagnosticLogsEnabled() && eventName.equals(IdentityEventConstants.Event
+                    .TRIGGER_NOTIFICATION)) {
+                DiagnosticLog.DiagnosticLogBuilder diagnosticLogBuilder = new DiagnosticLog.DiagnosticLogBuilder(
+                        AuthenticatorConstants.LogConstants.EMAIL_OTP_SERVICE,
+                        AuthenticatorConstants.LogConstants.ActionIDs.SEND_EMAIL_OTP);
+                diagnosticLogBuilder
+                        .inputParam(LogConstants.InputKeys.TENANT_DOMAIN, user.getTenantDomain())
+                        .inputParam(LogConstants.InputKeys.USER_ID, user.getLoggableMaskedUserId())
+                        .inputParam(LogConstants.InputKeys.SERVICE_PROVIDER, properties.get("serviceProviderName"))
+                        .inputParam(AuthenticatorConstants.LogConstants.InputKeys.EMAIL_TO,
+                                LoggerUtils.isLogMaskingEnable ?
+                                        LoggerUtils.getMaskedContent(receiver) : receiver)
+                        .resultMessage("Email sending event will be triggered.")
+                        .resultStatus(DiagnosticLog.ResultStatus.SUCCESS)
+                        .logDetailLevel(DiagnosticLog.LogDetailLevel.INTERNAL_SYSTEM);
+                LoggerUtils.triggerDiagnosticLogEvent(diagnosticLogBuilder);
+            }
             AuthenticatorDataHolder.getIdentityEventService().handleEvent(identityMgtEvent);
         } catch (IdentityEventException e) {
             throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_TRIGGERING_EVENT, e,
