@@ -37,8 +37,11 @@ import org.wso2.carbon.identity.application.authentication.framework.exception.A
 import org.wso2.carbon.identity.application.authentication.framework.exception.InvalidCredentialsException;
 import org.wso2.carbon.identity.application.authentication.framework.exception.LogoutFailedException;
 import org.wso2.carbon.identity.application.authentication.framework.exception.UserIdNotFoundException;
+import org.wso2.carbon.identity.application.authentication.framework.model.AdditionalData;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedIdPData;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedUser;
+import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatorData;
+import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatorParamMetadata;
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants;
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkUtils;
 import org.wso2.carbon.identity.application.common.model.ClaimConfig;
@@ -1684,5 +1687,58 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
                 return null;
             }
         });
+    }
+
+    /**
+     * This method is responsible for obtaining authenticator-specific data needed to
+     * initialize the authentication process within the provided authentication context.
+     *
+     * @param context The authentication context containing information about the current authentication attempt.
+     * @return An {@code Optional} containing an {@code AuthenticatorData} object representing the initiation data.
+     *         If the initiation data is available, it is encapsulated within the {@code Optional}; otherwise,
+     *         an empty {@code Optional} is returned.
+     */
+    @Override
+    public Optional<AuthenticatorData> getAuthInitiationData(AuthenticationContext context) {
+
+        AuthenticatorData authenticatorData = new AuthenticatorData();
+        authenticatorData.setName(getName());
+        String idpName = null;
+        if (context != null && context.getExternalIdP() != null) {
+            idpName = context.getExternalIdP().getIdPName();
+        }
+        authenticatorData.setIdp(idpName);
+        authenticatorData.setI18nKey(AuthenticatorConstants.AUTHENTICATOR_EMAIL_OTP);
+
+        List<AuthenticatorParamMetadata> authenticatorParamMetadataList = new ArrayList<>();
+        AuthenticatorParamMetadata usernameMetadata = new AuthenticatorParamMetadata(
+                AuthenticatorConstants.USER_NAME, FrameworkConstants.AuthenticatorParamType.STRING,
+                0, Boolean.FALSE, Boolean.TRUE, AuthenticatorConstants.USERNAME_PARAM);
+        authenticatorParamMetadataList.add(usernameMetadata);
+        AuthenticatorParamMetadata codeMetadata = new AuthenticatorParamMetadata(
+                AuthenticatorConstants.OTP_CODE, FrameworkConstants.AuthenticatorParamType.STRING,
+                1, Boolean.TRUE, Boolean.TRUE, AuthenticatorConstants.CODE_PARAM);
+        authenticatorParamMetadataList.add(codeMetadata);
+
+        List<String> requiredParams = new ArrayList<>();
+        AdditionalData additionalData = new AdditionalData();
+        additionalData.setPromptType(AuthenticatorConstants.USER_PROMPT);
+        requiredParams.add(AuthenticatorConstants.OTP_CODE);
+        requiredParams.add(AuthenticatorConstants.USER_NAME);
+        additionalData.setRequiredParams(requiredParams);
+        authenticatorData.setAdditionalData(additionalData);
+        authenticatorData.setAuthParams(authenticatorParamMetadataList);
+        return Optional.of(authenticatorData);
+    }
+
+    /**
+     * This method is responsible for validating whether the authenticator is supported for API Based Authentication.
+     *
+     * @return true if the authenticator is supported for API Based Authentication.
+     */
+    @Override
+    public boolean isAPIBasedAuthenticationSupported() {
+
+        return true;
     }
 }
