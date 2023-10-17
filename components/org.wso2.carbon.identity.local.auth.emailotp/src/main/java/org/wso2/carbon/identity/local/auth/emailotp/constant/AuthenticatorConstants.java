@@ -35,6 +35,12 @@ public class AuthenticatorConstants {
     public static final int DEFAULT_OTP_LENGTH = 6;
     public static final String DEFAULT_EMAIL_MASKING_REGEX = "(?<=.{3}).(?=[^@]*?@)";
 
+    public static final String USERNAME_PARAM = "username.param";
+    public static final String CODE_PARAM = "code.param";
+    public static final String OTP_CODE = "code";
+    public static final String USER_PROMPT = "USER_PROMPT";
+    public static final String AUTHENTICATOR_EMAIL_OTP = "authenticator.email.otp";
+
     // OTP generation.
     public static final String EMAIL_OTP_UPPER_CASE_ALPHABET_CHAR_SET = "KIGXHOYSPRWCEFMVUQLZDNABJT";
     public static final String EMAIL_OTP_NUMERIC_CHAR_SET = "9245378016";
