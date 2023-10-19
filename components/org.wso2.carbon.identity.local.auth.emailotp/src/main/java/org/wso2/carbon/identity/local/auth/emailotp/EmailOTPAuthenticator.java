@@ -1416,14 +1416,14 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             throws AuthenticationFailedException {
 
         try {
-            boolean useOnlyNumericChars = Boolean.parseBoolean(
+            boolean useAlphanumericChars = Boolean.parseBoolean(
                     AuthenticatorUtils.getEmailAuthenticatorConfig(
-                            AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_USE_NUMERIC_CHARS, tenantDomain));
-            if (useOnlyNumericChars) {
-                return AuthenticatorConstants.EMAIL_OTP_NUMERIC_CHAR_SET;
+                            AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_USE_ALPHANUMERIC_CHARS, tenantDomain));
+            if (useAlphanumericChars) {
+                return AuthenticatorConstants.EMAIL_OTP_UPPER_CASE_ALPHABET_CHAR_SET +
+                        AuthenticatorConstants.EMAIL_OTP_NUMERIC_CHAR_SET;
             }
-            return AuthenticatorConstants.EMAIL_OTP_UPPER_CASE_ALPHABET_CHAR_SET +
-                    AuthenticatorConstants.EMAIL_OTP_NUMERIC_CHAR_SET;
+            return AuthenticatorConstants.EMAIL_OTP_NUMERIC_CHAR_SET;
         } catch (EmailOtpAuthenticatorServerException exception) {
             throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_CONFIG,
                     context);
