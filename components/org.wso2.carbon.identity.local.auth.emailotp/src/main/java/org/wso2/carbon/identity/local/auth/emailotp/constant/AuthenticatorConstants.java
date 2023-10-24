@@ -37,7 +37,6 @@ public class AuthenticatorConstants {
 
     public static final String USERNAME_PARAM = "username.param";
     public static final String CODE_PARAM = "code.param";
-    public static final String OTP_CODE = "code";
     public static final String USER_PROMPT = "USER_PROMPT";
     public static final String AUTHENTICATOR_EMAIL_OTP = "authenticator.email.otp";
 
@@ -203,7 +202,10 @@ public class AuthenticatorConstants {
                 "tenant: %s"),
         ERROR_CODE_NO_FEDERATED_USER("65026", "No federated user found"),
         ERROR_CODE_NO_AUTHENTICATED_USER("65027", "No authenticated user found"),
-        ERROR_CODE_ERROR_REDIRECTING_TO_IDF_PAGE("65028", "Error while redirecting to the login page.");
+        ERROR_CODE_ERROR_REDIRECTING_TO_IDF_PAGE("65028", "Error while redirecting to the login page."),
+        ERROR_CODE_ERROR_GETTING_AUTHENTICATED_USER("65029",
+                "Error occurred while getting the authenticated user.");
+
 
         private final String code;
         private final String message;

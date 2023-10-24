@@ -1699,34 +1699,37 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
      *         an empty {@code Optional} is returned.
      */
     @Override
-    public Optional<AuthenticatorData> getAuthInitiationData(AuthenticationContext context) {
+    public Optional<AuthenticatorData> getAuthInitiationData(AuthenticationContext context) throws
+            AuthenticationFailedException {
 
         AuthenticatorData authenticatorData = new AuthenticatorData();
         authenticatorData.setName(getName());
         String idpName = null;
+        AuthenticatedUser authenticatedUserFromContext = null;
         if (context != null && context.getExternalIdP() != null) {
             idpName = context.getExternalIdP().getIdPName();
+            authenticatedUserFromContext = getAuthenticatedUserFromContext(context);
         }
         authenticatorData.setIdp(idpName);
         authenticatorData.setI18nKey(AuthenticatorConstants.AUTHENTICATOR_EMAIL_OTP);
 
         List<AuthenticatorParamMetadata> authenticatorParamMetadataList = new ArrayList<>();
-        AuthenticatorParamMetadata usernameMetadata = new AuthenticatorParamMetadata(
-                AuthenticatorConstants.USER_NAME, FrameworkConstants.AuthenticatorParamType.STRING,
-                0, Boolean.FALSE, Boolean.TRUE, AuthenticatorConstants.USERNAME_PARAM);
-        authenticatorParamMetadataList.add(usernameMetadata);
-        AuthenticatorParamMetadata codeMetadata = new AuthenticatorParamMetadata(
-                AuthenticatorConstants.OTP_CODE, FrameworkConstants.AuthenticatorParamType.STRING,
-                1, Boolean.TRUE, Boolean.TRUE, AuthenticatorConstants.CODE_PARAM);
-        authenticatorParamMetadataList.add(codeMetadata);
-
         List<String> requiredParams = new ArrayList<>();
-        AdditionalData additionalData = new AdditionalData();
-        additionalData.setPromptType(AuthenticatorConstants.USER_PROMPT);
-        requiredParams.add(AuthenticatorConstants.OTP_CODE);
-        requiredParams.add(AuthenticatorConstants.USER_NAME);
-        additionalData.setRequiredParams(requiredParams);
-        authenticatorData.setAdditionalData(additionalData);
+        if (authenticatedUserFromContext == null) {
+            AuthenticatorParamMetadata usernameMetadata = new AuthenticatorParamMetadata(
+                    AuthenticatorConstants.USER_NAME, FrameworkConstants.AuthenticatorParamType.STRING,
+                    0, Boolean.FALSE, AuthenticatorConstants.USERNAME_PARAM);
+            authenticatorParamMetadataList.add(usernameMetadata);
+            requiredParams.add(AuthenticatorConstants.USER_NAME);
+        } else {
+            AuthenticatorParamMetadata codeMetadata = new AuthenticatorParamMetadata(
+                    AuthenticatorConstants.CODE, FrameworkConstants.AuthenticatorParamType.STRING,
+                    1, Boolean.TRUE, AuthenticatorConstants.CODE_PARAM);
+            authenticatorParamMetadataList.add(codeMetadata);
+            requiredParams.add(AuthenticatorConstants.CODE);
+        }
+        authenticatorData.setPromptType(FrameworkConstants.AuthenticatorPromptType.USER_PROMPT);
+        authenticatorData.setRequiredParams(requiredParams);
         authenticatorData.setAuthParams(authenticatorParamMetadataList);
         return Optional.of(authenticatorData);
     }

@@ -32,7 +32,9 @@ import org.wso2.carbon.identity.application.authentication.framework.config.mode
 import org.wso2.carbon.identity.application.authentication.framework.config.model.SequenceConfig;
 import org.wso2.carbon.identity.application.authentication.framework.config.model.StepConfig;
 import org.wso2.carbon.identity.application.authentication.framework.context.AuthenticationContext;
+import org.wso2.carbon.identity.application.authentication.framework.exception.AuthenticationFailedException;
 import org.wso2.carbon.identity.application.authentication.framework.internal.FrameworkServiceDataHolder;
+import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedUser;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatorData;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatorParamMetadata;
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants;
@@ -100,6 +102,7 @@ public class EmailOTPAuthenticatorTest {
     private ClaimMetadataManagementService claimMetadataManagementService;
     private IdentityGovernanceService identityGovernanceService;
     private CaptchaDataHolder captchaDataHolder;
+    private AuthenticatedUser authenticatedUserFromContext;
 
     private static final String USERNAME = "abc@gmail.com";
     private static final String EMAIL_ADDRESS = "abc@gmail.com";
@@ -111,6 +114,7 @@ public class EmailOTPAuthenticatorTest {
 
     @BeforeMethod
     public void setUp() {
+        authenticatedUserFromContext = mock(AuthenticatedUser.class);
         emailOTPAuthenticator = new EmailOTPAuthenticator();
         httpServletRequest = mock(HttpServletRequest.class);
         httpServletResponse = mock(HttpServletResponse.class);
@@ -313,7 +317,7 @@ public class EmailOTPAuthenticatorTest {
     }
 
     @Test
-    public void testGetAuthInitiationData() {
+    public void testGetAuthInitiationData() throws AuthenticationFailedException {
 
         Optional<AuthenticatorData> authenticatorData = emailOTPAuthenticator.getAuthInitiationData(context);
         Assert.assertTrue(authenticatorData.isPresent());
@@ -324,18 +328,14 @@ public class EmailOTPAuthenticatorTest {
                 AuthenticatorConstants.USER_NAME, FrameworkConstants.AuthenticatorParamType.STRING,
                 0, Boolean.FALSE, Boolean.TRUE, AuthenticatorConstants.USERNAME_PARAM);
         authenticatorParamMetadataList.add(usernameMetadata);
-        AuthenticatorParamMetadata codeMetadata = new AuthenticatorParamMetadata(
-                AuthenticatorConstants.OTP_CODE, FrameworkConstants.AuthenticatorParamType.STRING,
-                1, Boolean.TRUE, Boolean.TRUE, AuthenticatorConstants.CODE_PARAM);
-        authenticatorParamMetadataList.add(codeMetadata);
 
         Assert.assertEquals(authenticatorDataObj.getName(), AuthenticatorConstants.EMAIL_OTP_AUTHENTICATOR_NAME);
         Assert.assertEquals(authenticatorDataObj.getAuthParams().size(), authenticatorParamMetadataList.size(),
                 "Size of lists should be equal.");
-        Assert.assertEquals(authenticatorDataObj.getAdditionalDataObj().getPromptType(),
+        Assert.assertEquals(authenticatorDataObj.getAdditionalData().getPromptType(),
                 AuthenticatorConstants.USER_PROMPT);
-        Assert.assertEquals(authenticatorDataObj.getAdditionalDataObj().getRequiredParams().size(),
-                2);
+        Assert.assertEquals(authenticatorDataObj.getAdditionalData().getRequiredParams().size(),
+                1);
         for (int i = 0; i < authenticatorParamMetadataList.size(); i++) {
             AuthenticatorParamMetadata expectedParam = authenticatorParamMetadataList.get(i);
             AuthenticatorParamMetadata actualParam = authenticatorDataObj.getAuthParams().get(i);
