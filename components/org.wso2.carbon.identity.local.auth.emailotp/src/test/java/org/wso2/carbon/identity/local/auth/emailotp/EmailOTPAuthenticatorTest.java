@@ -326,15 +326,15 @@ public class EmailOTPAuthenticatorTest {
         List<AuthenticatorParamMetadata> authenticatorParamMetadataList = new ArrayList<>();
         AuthenticatorParamMetadata usernameMetadata = new AuthenticatorParamMetadata(
                 AuthenticatorConstants.USER_NAME, FrameworkConstants.AuthenticatorParamType.STRING,
-                0, Boolean.FALSE, Boolean.TRUE, AuthenticatorConstants.USERNAME_PARAM);
+                0, Boolean.FALSE, AuthenticatorConstants.USERNAME_PARAM);
         authenticatorParamMetadataList.add(usernameMetadata);
 
         Assert.assertEquals(authenticatorDataObj.getName(), AuthenticatorConstants.EMAIL_OTP_AUTHENTICATOR_NAME);
         Assert.assertEquals(authenticatorDataObj.getAuthParams().size(), authenticatorParamMetadataList.size(),
                 "Size of lists should be equal.");
-        Assert.assertEquals(authenticatorDataObj.getAdditionalData().getPromptType(),
-                AuthenticatorConstants.USER_PROMPT);
-        Assert.assertEquals(authenticatorDataObj.getAdditionalData().getRequiredParams().size(),
+        Assert.assertEquals(authenticatorDataObj.getPromptType(),
+                FrameworkConstants.AuthenticatorPromptType.USER_PROMPT);
+        Assert.assertEquals(authenticatorDataObj.getRequiredParams().size(),
                 1);
         for (int i = 0; i < authenticatorParamMetadataList.size(); i++) {
             AuthenticatorParamMetadata expectedParam = authenticatorParamMetadataList.get(i);
