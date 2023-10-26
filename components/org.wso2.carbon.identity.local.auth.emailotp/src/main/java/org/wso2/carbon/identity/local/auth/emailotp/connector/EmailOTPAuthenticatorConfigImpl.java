@@ -102,6 +102,7 @@ public class EmailOTPAuthenticatorConfigImpl implements IdentityConnectorConfig 
         properties.add(AuthenticatorConstants.ConnectorConfig.ENABLE_BACKUP_CODES);
         properties.add(AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_LENGTH);
         properties.add(AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_USE_ALPHANUMERIC_CHARS);
+        properties.add(AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_USE_NUMERIC_CHARS);
         return properties.toArray(new String[0]);
     }
 
@@ -112,6 +113,7 @@ public class EmailOTPAuthenticatorConfigImpl implements IdentityConnectorConfig 
         String otpExpiryTime = "300";
         String useBackupCodes = "false";
         String useAlphanumericChars = "false";
+        String useNumericChars = "true";
         String otpLength = Integer.toString(AuthenticatorConstants.DEFAULT_OTP_LENGTH);
 
         String otpExpiryTimeProperty = IdentityUtil.getProperty(AuthenticatorConstants.ConnectorConfig.OTP_EXPIRY_TIME);
@@ -119,6 +121,8 @@ public class EmailOTPAuthenticatorConfigImpl implements IdentityConnectorConfig 
                 AuthenticatorConstants.ConnectorConfig.ENABLE_BACKUP_CODES);
         String useAlphanumericCharsProperty = IdentityUtil.getProperty(
                 AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_USE_ALPHANUMERIC_CHARS);
+        String useNumericCharsProperty = IdentityUtil.getProperty(
+                AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_USE_NUMERIC_CHARS);
         String otpLengthProperty = IdentityUtil.getProperty(AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_LENGTH);
 
         if (StringUtils.isNotBlank(otpExpiryTimeProperty)) {
@@ -130,6 +134,9 @@ public class EmailOTPAuthenticatorConfigImpl implements IdentityConnectorConfig 
         if (StringUtils.isNotBlank(useAlphanumericCharsProperty)) {
             useAlphanumericChars = useAlphanumericCharsProperty;
         }
+        if (StringUtils.isNotBlank(useNumericCharsProperty)) {
+            useNumericChars = useNumericCharsProperty;
+        }
         if (StringUtils.isNotBlank(otpLengthProperty)) {
             otpLength = otpLengthProperty;
         }
@@ -138,6 +145,7 @@ public class EmailOTPAuthenticatorConfigImpl implements IdentityConnectorConfig 
         defaultProperties.put(AuthenticatorConstants.ConnectorConfig.ENABLE_BACKUP_CODES, useBackupCodes);
         defaultProperties.put(AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_USE_ALPHANUMERIC_CHARS,
                 useAlphanumericChars);
+        defaultProperties.put(AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_USE_NUMERIC_CHARS, useNumericChars);
         defaultProperties.put(AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_LENGTH, otpLength);
 
         Properties properties = new Properties();
