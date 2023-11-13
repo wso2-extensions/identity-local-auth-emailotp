@@ -40,6 +40,7 @@ import org.wso2.carbon.identity.application.authentication.framework.exception.U
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedIdPData;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedUser;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatorData;
+import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatorMessage;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatorParamMetadata;
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants;
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkUtils;
@@ -104,6 +105,9 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
 
     private static final long serialVersionUID = 2752231096259744926L;
     private static final Log log = LogFactory.getLog(EmailOTPAuthenticator.class);
+    private static final String EMAIL_OTP_SENT = "EmailOTPSent";
+    private static final String MASKED_EMAIL = "maskedEmail";
+    private static final String AUTHENTICATOR_MESSAGE = "authenticatorMessage";
 
     @Override
     public String getFriendlyName() {
@@ -241,7 +245,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         */
         boolean isInitialFederationAttempt = StringUtils.isBlank(mappedLocalUsername);
         AuthenticatedUser authenticatingUser = resolveAuthenticatingUser(authenticatedUserFromContext,
-                mappedLocalUsername, applicationTenantDomain, isInitialFederationAttempt);
+                mappedLocalUsername, applicationTenantDomain, isInitialFederationAttempt, context);
         String email = resolveEmailOfAuthenticatedUser(authenticatingUser, applicationTenantDomain,
                 context, isInitialFederationAttempt);
         if (StringUtils.isBlank(email)) {
@@ -295,7 +299,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
 
         AuthenticatedUser authenticatedUserFromContext = getAuthenticatedUserFromContext(context);
         if (authenticatedUserFromContext == null) {
-            throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_NO_USER_FOUND);
+            throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_NO_USER_FOUND, context);
         } else if (isPreviousIdPAuthenticationFlowHandler(context)) {
             User user = getUser(authenticatedUserFromContext);
             if (user != null) {
@@ -317,9 +321,9 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         */
         boolean isInitialFederationAttempt = StringUtils.isBlank(mappedLocalUsername);
         AuthenticatedUser authenticatingUser = resolveAuthenticatingUser(authenticatedUserFromContext,
-                mappedLocalUsername, applicationTenantDomain, isInitialFederationAttempt);
+                mappedLocalUsername, applicationTenantDomain, isInitialFederationAttempt, context);
         if (!isInitialFederationAttempt && AuthenticatorUtils.isAccountLocked(authenticatingUser)) {
-            throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_USER_ACCOUNT_LOCKED,
+            throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_USER_ACCOUNT_LOCKED, context,
                     authenticatingUser.getUserName());
         }
         if (StringUtils.isBlank(request.getParameter(AuthenticatorConstants.CODE))) {
@@ -341,7 +345,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             }
             if (!isInitialFederationAttempt) {
                 // A mapped user is not available for isInitialFederationAttempt true scenario.
-                resetOtpFailedAttempts(authenticatingUser);
+                resetOtpFailedAttempts(authenticatingUser, context);
             }
             publishPostEmailOTPValidatedEvent(authenticatedUserFromContext, true,
                     false, request, context);
@@ -369,17 +373,17 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         */
         if (!isInitialFederationAttempt) {
             // A mapped user is not available for isInitialFederationAttempt true scenario.
-            handleOtpVerificationFail(authenticatingUser);
+            handleOtpVerificationFail(authenticatingUser , context);
         }
         if (Boolean.parseBoolean(context.getProperty(AuthenticatorConstants.OTP_EXPIRED).toString())) {
             publishPostEmailOTPValidatedEvent(authenticatedUserFromContext, false,
                     true, request, context);
-            throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_OTP_EXPIRED,
+            throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_OTP_EXPIRED, context,
                     authenticatedUserFromContext.getUserName());
         } else {
             publishPostEmailOTPValidatedEvent(authenticatedUserFromContext, false,
                     false, request, context);
-            throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_OTP_INVALID,
+            throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_OTP_INVALID, context,
                     authenticatedUserFromContext.getUserName());
         }
     }
@@ -401,7 +405,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
 
         boolean isInitialFederationAttempt = StringUtils.isBlank(mappedLocalUsername);
         AuthenticatedUser authenticatingUser = resolveAuthenticatingUser(authenticatedUserFromContext,
-                mappedLocalUsername, applicationTenantDomain, isInitialFederationAttempt);
+                mappedLocalUsername, applicationTenantDomain, isInitialFederationAttempt, context);
         if (authenticatingUser != null) {
             String email = resolveEmailOfAuthenticatedUser(authenticatingUser, applicationTenantDomain,
                     context, isInitialFederationAttempt);
@@ -432,7 +436,8 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
      */
     private AuthenticatedUser resolveAuthenticatingUser(AuthenticatedUser authenticatedUserInContext,
                                                         String mappedLocalUsername,
-                                                        String tenantDomain, boolean isInitialFederationAttempt)
+                                                        String tenantDomain, boolean isInitialFederationAttempt,
+                                                        AuthenticationContext context)
             throws AuthenticationFailedException {
 
         // This is a federated initial authentication scenario.
@@ -450,7 +455,8 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         */
         AuthenticatedUser authenticatingUser = new AuthenticatedUser(authenticatedUserInContext);
         authenticatingUser.setUserName(mappedLocalUsername);
-        authenticatingUser.setUserStoreDomain(getFederatedUserstoreDomain(authenticatedUserInContext, tenantDomain));
+        authenticatingUser.setUserStoreDomain(getFederatedUserstoreDomain(authenticatedUserInContext, tenantDomain,
+                context));
         return authenticatingUser;
     }
 
@@ -477,9 +483,10 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
      * @param user AuthenticatedUser.
      * @throws AuthenticationFailedException If an error occurred while resetting the OTP failed attempts.
      */
-    private void resetOtpFailedAttempts(AuthenticatedUser user) throws AuthenticationFailedException {
+    private void resetOtpFailedAttempts(AuthenticatedUser user , AuthenticationContext context)
+            throws AuthenticationFailedException {
 
-        UserStoreManager userStoreManager = getUserStoreManager(user);
+        UserStoreManager userStoreManager = getUserStoreManager(user, context);
         // Add required meta properties to the event.
         Map<String, Object> metaProperties = new HashMap<>();
         metaProperties.put(AUTHENTICATOR_NAME, AuthenticatorConstants.EMAIL_OTP_AUTHENTICATOR_NAME);
@@ -488,7 +495,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         metaProperties.put(USER_STORE_MANAGER, userStoreManager);
         metaProperties.put(OPERATION_STATUS, true);
 
-        triggerEvent(POST_NON_BASIC_AUTHENTICATION, user, metaProperties);
+        triggerEvent(POST_NON_BASIC_AUTHENTICATION, user, metaProperties, context);
     }
 
     /**
@@ -498,9 +505,10 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
      * @param user AuthenticatedUser.
      * @throws AuthenticationFailedException If an error occurred while resetting the OTP failed attempts.
      */
-    private void handleOtpVerificationFail(AuthenticatedUser user) throws AuthenticationFailedException {
+    private void handleOtpVerificationFail(AuthenticatedUser user , AuthenticationContext context)
+            throws AuthenticationFailedException {
 
-        UserStoreManager userStoreManager = getUserStoreManager(user);
+        UserStoreManager userStoreManager = getUserStoreManager(user, context);
         // Add required meta properties to the event.
         Map<String, Object> metaProperties = new HashMap<>();
         metaProperties.put(AUTHENTICATOR_NAME, AuthenticatorConstants.EMAIL_OTP_AUTHENTICATOR_NAME);
@@ -509,7 +517,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         metaProperties.put(USER_STORE_MANAGER, userStoreManager);
         metaProperties.put(OPERATION_STATUS, false);
 
-        triggerEvent(POST_NON_BASIC_AUTHENTICATION, user, metaProperties);
+        triggerEvent(POST_NON_BASIC_AUTHENTICATION, user, metaProperties, context);
     }
 
     /**
@@ -528,11 +536,11 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         String tokenInContext = (String) context.getProperty(AuthenticatorConstants.OTP_TOKEN);
         if (StringUtils.isBlank(userToken)) {
             throw handleAuthErrorScenario(
-                    AuthenticatorConstants.ErrorMessages.ERROR_CODE_EMPTY_OTP_CODE, user.getUserName());
+                    AuthenticatorConstants.ErrorMessages.ERROR_CODE_EMPTY_OTP_CODE, context, user.getUserName());
         }
         if (StringUtils.isBlank(tokenInContext)) {
             throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_EMPTY_OTP_CODE_IN_CONTEXT,
-                    user.getUserName());
+                    context, user.getUserName());
         }
         boolean isExpired = isOtpExpired(tenantDomain, context);
         if (userToken.equals(tokenInContext)) {
@@ -546,7 +554,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
                 context.setSubject(user);
                 return true;
             }
-        } else if (isBackupCodeEnabled(tenantDomain)) {
+        } else if (isBackupCodeEnabled(tenantDomain, context)) {
             if (log.isDebugEnabled()) {
                 log.debug("Checking OTP given by the user: " + user.getUserName() + " with backup codes");
             }
@@ -576,7 +584,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         // Get the saved backup codes from the user store for the user.
         String savedBackupCodes =
                 getUserClaimValueFromUserStore(AuthenticatorConstants.Claims.OTP_BACKUP_CODES_CLAIM, user,
-                        AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_BACKUP_CODES);
+                        AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_BACKUP_CODES, context);
         if (StringUtils.isBlank(savedBackupCodes)) {
             if (log.isDebugEnabled()) {
                 log.debug("No backup codes found for user: " + user.getUserName());
@@ -604,7 +612,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             log.debug("Saved backup code found for the user: " + user.getUserName());
         }
         context.setSubject(user);
-        removeUsedBackupCode(userToken, tenantAwareUsername, new ArrayList<>(backupCodes), user);
+        removeUsedBackupCode(userToken, tenantAwareUsername, new ArrayList<>(backupCodes), user , context);
         return true;
     }
 
@@ -618,7 +626,8 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
      * @throws AuthenticationFailedException If an error occurred while removing the used otp.
      */
     private void removeUsedBackupCode(String userToken, String tenantAwareUsername, List<String> backupCodes,
-                                      AuthenticatedUser user) throws AuthenticationFailedException {
+                                      AuthenticatedUser user , AuthenticationContext authenticationContext)
+            throws AuthenticationFailedException {
 
         backupCodes.remove(userToken);
         String unusedBackupCodes = String.join(AuthenticatorConstants.BACKUP_CODES_SEPARATOR, backupCodes);
@@ -627,13 +636,13 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
                 log.debug(String.format("Removing used token: %s from the backup OTP list of user: %s", userToken,
                         user.getUserName()));
             }
-            UserStoreManager userStoreManager = getUserStoreManager(user);
+            UserStoreManager userStoreManager = getUserStoreManager(user, authenticationContext);
             Map<String, String> claimsToUpdate = new HashMap<>();
             claimsToUpdate.put(AuthenticatorConstants.Claims.OTP_BACKUP_CODES_CLAIM, unusedBackupCodes);
             userStoreManager.setUserClaimValues(tenantAwareUsername, claimsToUpdate, null);
         } catch (UserStoreException e) {
             throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_UPDATING_BACKUP_CODES,
-                    e, user.getUserName());
+                    e, authenticationContext, user.getUserName());
         }
     }
 
@@ -647,10 +656,11 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             throws AuthenticationFailedException {
 
         if (context.getProperty(AuthenticatorConstants.OTP_GENERATED_TIME) == null) {
-            throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_EMPTY_GENERATED_TIME);
+            throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_EMPTY_GENERATED_TIME,
+                    context);
         }
         long generatedTime = (long) context.getProperty(AuthenticatorConstants.OTP_GENERATED_TIME);
-        long expireTime = getOtpValidityPeriod(tenantDomain);
+        long expireTime = getOtpValidityPeriod(tenantDomain, context);
         return System.currentTimeMillis() >= generatedTime + expireTime;
     }
 
@@ -669,7 +679,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
                               AuthenticatorConstants.AuthenticationScenarios scenario, AuthenticationContext context)
             throws AuthenticationFailedException {
 
-        String otp = generateOTP(tenantDomain);
+        String otp = generateOTP(tenantDomain, context);
         context.setProperty(AuthenticatorConstants.OTP_TOKEN, otp);
         context.setProperty(AuthenticatorConstants.OTP_GENERATED_TIME, System.currentTimeMillis());
         context.setProperty(AuthenticatorConstants.OTP_EXPIRED, Boolean.toString(false));
@@ -682,6 +692,9 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         metaProperties.put(AuthenticatorConstants.CODE, otp);
         metaProperties.put(EMAIL_TEMPLATE_TYPE, AuthenticatorConstants.EMAIL_OTP_TEMPLATE_NAME);
         metaProperties.put(ARBITRARY_SEND_TO, email);
+        String maskedEmailAddress = getMaskedEmailAddress(authenticatedUser.getUserName(), email, tenantDomain,
+                context);
+        setAuthenticatorMessage(context, maskedEmailAddress);
 
         /* SaaS apps are created at the super tenant level and they can be accessed by users of other organizations.
         If users of other organizations try to login to a saas app, the email notification should be triggered from the
@@ -689,12 +702,13 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         if (context.getSequenceConfig().getApplicationConfig().isSaaSApp()) {
             try {
                 FrameworkUtils.startTenantFlow(authenticatedUser.getTenantDomain());
-                triggerEvent(IdentityEventConstants.Event.TRIGGER_NOTIFICATION, authenticatedUser, metaProperties);
+                triggerEvent(IdentityEventConstants.Event.TRIGGER_NOTIFICATION, authenticatedUser, metaProperties,
+                        context);
             } finally {
                 FrameworkUtils.endTenantFlow();
             }
         } else {
-            triggerEvent(IdentityEventConstants.Event.TRIGGER_NOTIFICATION, authenticatedUser, metaProperties);
+            triggerEvent(IdentityEventConstants.Event.TRIGGER_NOTIFICATION, authenticatedUser, metaProperties, context);
         }
         if (LoggerUtils.isDiagnosticLogsEnabled()) {
             DiagnosticLog.DiagnosticLogBuilder diagnosticLogBuilder = new DiagnosticLog.DiagnosticLogBuilder(
@@ -712,6 +726,18 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             optionalUserId.ifPresent(userId -> diagnosticLogBuilder.inputParam(LogConstants.InputKeys.USER_ID, userId));
             LoggerUtils.triggerDiagnosticLogEvent(diagnosticLogBuilder);
         }
+    }
+
+    private static void setAuthenticatorMessage(AuthenticationContext context, String maskedEmailAddress) {
+
+        String message = "The code is successfully sent to the email ID: " + maskedEmailAddress;
+        Map<String, String> messageContext = new HashMap<>();
+        messageContext.put(MASKED_EMAIL, maskedEmailAddress);
+
+        AuthenticatorMessage authenticatorMessage = new AuthenticatorMessage(FrameworkConstants.
+                AuthenticatorMessageType.INFO, EMAIL_OTP_SENT, message, messageContext);
+
+        context.setProperty(AUTHENTICATOR_MESSAGE, authenticatorMessage);
     }
 
     /**
@@ -743,7 +769,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
                     String.valueOf(context.getParameter(
                             AuthenticatorConstants.IS_IDF_INITIATED_FROM_AUTHENTICATOR)))) {
                 url = url + AuthenticatorConstants.SCREEN_VALUE_QUERY_PARAM +
-                        getMaskedEmailAddress(username, email, tenantDomain);
+                        getMaskedEmailAddress(username, email, tenantDomain, context);
             }
             if (context.isRetrying() && !Boolean.parseBoolean(request.getParameter(AuthenticatorConstants.RESEND))) {
                 url = url + AuthenticatorConstants.RETRY_QUERY_PARAMS;
@@ -759,7 +785,8 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             }
         } catch (IOException e) {
             throw handleAuthErrorScenario(
-                    AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_REDIRECTING_TO_LOGIN_PAGE, e, (Object) null);
+                    AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_REDIRECTING_TO_LOGIN_PAGE, e, context,
+                    (Object) null);
         }
     }
 
@@ -772,10 +799,11 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
      * @return Masked email address.
      * @throws AuthenticationFailedException If an error occurred while masking the given email.
      */
-    private String getMaskedEmailAddress(String username, String email, String tenantDomain)
+    private String getMaskedEmailAddress(String username, String email, String tenantDomain,
+                                         AuthenticationContext context)
             throws AuthenticationFailedException {
 
-        String emailAddressRegex = getEmailMaskingPattern(tenantDomain);
+        String emailAddressRegex = getEmailMaskingPattern(tenantDomain, context);
         if (StringUtils.isBlank(emailAddressRegex)) {
             log.debug(String.format("Email address masking regex is not set in tenant: %s. Therefore showing the " +
                     "complete email address for user: %s", tenantDomain, username));
@@ -820,14 +848,15 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
                 // Add generated time and expiry time info for the event.
                 long otpGeneratedTime = (long) context.getProperty(AuthenticatorConstants.OTP_GENERATED_TIME);
                 eventProperties.put(IdentityEventConstants.EventProperty.OTP_GENERATED_TIME, otpGeneratedTime);
-                long expiryTime = otpGeneratedTime + getOtpValidityPeriod(tenantDomain);
+                long expiryTime = otpGeneratedTime + getOtpValidityPeriod(tenantDomain, context);
                 eventProperties.put(IdentityEventConstants.EventProperty.OTP_EXPIRY_TIME, expiryTime);
             } else {
                 eventProperties.put(IdentityEventConstants.EventProperty.OTP_STATUS,
                         AuthenticatorConstants.STATUS_CODE_MISMATCH);
             }
         }
-        triggerEvent(IdentityEventConstants.Event.POST_VALIDATE_EMAIL_OTP, authenticatedUser, eventProperties);
+        triggerEvent(IdentityEventConstants.Event.POST_VALIDATE_EMAIL_OTP, authenticatedUser, eventProperties ,
+                context);
     }
 
     /**
@@ -859,10 +888,10 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             eventProperties.put(IdentityEventConstants.EventProperty.OTP_GENERATED_TIME, otpGeneratedTime);
 
             // Calculate OTP expiry time.
-            long expiryTime = otpGeneratedTime + getOtpValidityPeriod(tenantDomain);
+            long expiryTime = otpGeneratedTime + getOtpValidityPeriod(tenantDomain, context);
             eventProperties.put(IdentityEventConstants.EventProperty.OTP_EXPIRY_TIME, expiryTime);
         }
-        triggerEvent(IdentityEventConstants.Event.POST_GENERATE_EMAIL_OTP, authenticatedUser, eventProperties);
+        triggerEvent(IdentityEventConstants.Event.POST_GENERATE_EMAIL_OTP, authenticatedUser, eventProperties, context);
     }
 
     /**
@@ -874,7 +903,8 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
      * @throws AuthenticationFailedException If an error occurred while triggering the event.
      */
     private void triggerEvent(String eventName, AuthenticatedUser user,
-                              Map<String, Object> metaProperties) throws AuthenticationFailedException {
+                              Map<String, Object> metaProperties , AuthenticationContext context)
+            throws AuthenticationFailedException {
 
         HashMap<String, Object> properties = new HashMap<>();
         properties.put(IdentityEventConstants.EventProperty.USER_NAME, user.getUserName());
@@ -910,7 +940,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             AuthenticatorDataHolder.getIdentityEventService().handleEvent(identityMgtEvent);
         } catch (IdentityEventException e) {
             throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_TRIGGERING_EVENT, e,
-                    eventName, user.getUserName());
+                    context, eventName, user.getUserName());
         }
     }
 
@@ -930,13 +960,13 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
                 context.getCallerSessionKey(), context.getContextIdentifier());
         String retryParam;
         // By default we are showing the authentication failure reason here.
-        long unlockTime = getUnlockTimeInMilliSeconds(authenticatedUser);
+        long unlockTime = getUnlockTimeInMilliSeconds(authenticatedUser, context);
         long timeToUnlock = unlockTime - System.currentTimeMillis();
         if (timeToUnlock > 0) {
             queryParams += AuthenticatorConstants.UNLOCK_QUERY_PARAM + Math.round((double) timeToUnlock / 1000 / 60);
         }
         // Locked reason.
-        String lockedReason = getLockedReason(authenticatedUser);
+        String lockedReason = getLockedReason(authenticatedUser, context);
         if (StringUtils.isNotBlank(lockedReason)) {
             queryParams += AuthenticatorConstants.LOCKED_REASON_QUERY_PARAM + lockedReason;
         }
@@ -969,7 +999,8 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             response.sendRedirect(url + retryParam);
         } catch (IOException e) {
             throw handleAuthErrorScenario(
-                    AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_REDIRECTING_TO_ERROR_PAGE, e, (Object) null);
+                    AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_REDIRECTING_TO_ERROR_PAGE, context
+                    , e, (Object) null);
         }
     }
 
@@ -1001,13 +1032,14 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
      * @return User account unlock time in milli seconds. If no value is configured return 0.
      * @throws AuthenticationFailedException If an error occurred while getting the user unlock time.
      */
-    private long getUnlockTimeInMilliSeconds(AuthenticatedUser authenticatedUser) throws AuthenticationFailedException {
+    private long getUnlockTimeInMilliSeconds(AuthenticatedUser authenticatedUser, AuthenticationContext context)
+            throws AuthenticationFailedException {
 
         String username = authenticatedUser.toFullQualifiedUsername();
         String accountLockedTime =
                 getUserClaimValueFromUserStore(AuthenticatorConstants.Claims.ACCOUNT_UNLOCK_TIME_CLAIM,
                         authenticatedUser,
-                        AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_ACCOUNT_UNLOCK_TIME);
+                        AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_ACCOUNT_UNLOCK_TIME, context);
         if (StringUtils.isBlank(accountLockedTime)) {
             if (log.isDebugEnabled()) {
                 log.debug(String.format("No value configured for claim: %s for user: %s",
@@ -1018,12 +1050,13 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         return Long.parseLong(accountLockedTime);
     }
 
-    private String getLockedReason(AuthenticatedUser authenticatedUser) throws AuthenticationFailedException {
+    private String getLockedReason(AuthenticatedUser authenticatedUser, AuthenticationContext context)
+            throws AuthenticationFailedException {
 
         String username = authenticatedUser.toFullQualifiedUsername();
         String lockedReason = getUserClaimValueFromUserStore(
                 AuthenticatorConstants.Claims.ACCOUNT_LOCKED_REASON_CLAIM, authenticatedUser,
-                AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_ACCOUNT_UNLOCK_TIME);
+                AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_ACCOUNT_UNLOCK_TIME, context);
         if (StringUtils.isBlank(lockedReason) && (log.isDebugEnabled())) {
             log.debug(String.format("No value configured for claim: %s for user: %s",
                     AuthenticatorConstants.Claims.ACCOUNT_LOCKED_REASON_CLAIM, username));
@@ -1057,7 +1090,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
                         "tenant: %s", user.getUserName(), user.getUserStoreDomain(), user.getTenantDomain()));
             }
             email = getUserClaimValueFromUserStore(AuthenticatorConstants.Claims.EMAIL_CLAIM, user,
-                    AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_EMAIL_ADDRESS);
+                    AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_EMAIL_ADDRESS, context);
         }
         return email;
     }
@@ -1106,18 +1139,18 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         }
         // If the dialect is not OIDC we need to check claim mappings for the email claim mapped attribute.
         String idpName = user.getFederatedIdPName();
-        IdentityProvider idp = getIdentityProvider(idpName, tenantDomain);
+        IdentityProvider idp = getIdentityProvider(idpName, tenantDomain, context);
         ClaimConfig claimConfigs = idp.getClaimConfig();
         if (claimConfigs == null) {
             throw handleAuthErrorScenario(
                     AuthenticatorConstants.ErrorMessages.ERROR_CODE_NO_CLAIM_CONFIGS_IN_FEDERATED_AUTHENTICATOR,
-                    idpName, tenantDomain);
+                    context, idpName, tenantDomain);
         }
         ClaimMapping[] claimMappings = claimConfigs.getClaimMappings();
         if (ArrayUtils.isEmpty(claimMappings)) {
             throw handleAuthErrorScenario(
                     AuthenticatorConstants.ErrorMessages.ERROR_CODE_NO_CLAIM_CONFIGS_IN_FEDERATED_AUTHENTICATOR,
-                    idpName, tenantDomain);
+                    context, idpName, tenantDomain);
         }
 
         String emailAttributeKey = null;
@@ -1129,26 +1162,27 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         }
         if (StringUtils.isBlank(emailAttributeKey)) {
             throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_NO_EMAIL_CLAIM_MAPPINGS,
-                    idpName, tenantDomain);
+                    context, idpName, tenantDomain);
         }
         return emailAttributeKey;
     }
 
-    private IdentityProvider getIdentityProvider(String idpName, String tenantDomain) throws
+    private IdentityProvider getIdentityProvider(String idpName, String tenantDomain,
+                                                 AuthenticationContext context) throws
             AuthenticationFailedException {
 
         try {
             IdentityProvider idp = AuthenticatorDataHolder.getIdpManager().getIdPByName(idpName, tenantDomain);
             if (idp == null) {
                 throw handleAuthErrorScenario(
-                        AuthenticatorConstants.ErrorMessages.ERROR_CODE_INVALID_FEDERATED_AUTHENTICATOR, idpName,
-                        tenantDomain);
+                        AuthenticatorConstants.ErrorMessages.ERROR_CODE_INVALID_FEDERATED_AUTHENTICATOR, context,
+                        idpName, tenantDomain);
             }
             return idp;
         } catch (IdentityProviderManagementException e) {
             throw handleAuthErrorScenario(
-                    AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_FEDERATED_AUTHENTICATOR, idpName,
-                    tenantDomain);
+                    AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_FEDERATED_AUTHENTICATOR, context,
+                    idpName, tenantDomain);
         }
     }
 
@@ -1190,7 +1224,8 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
                     if (log.isDebugEnabled()) {
                         log.debug("Username can not be empty");
                     }
-                    throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_EMPTY_USERNAME);
+                    throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_EMPTY_USERNAME,
+                            context);
                 }
                 return user;
             }
@@ -1205,7 +1240,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             return null;
         }
         // If authenticated user cannot be found from the previous steps.
-        throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_NO_USER_FOUND);
+        throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_NO_USER_FOUND, context);
     }
 
     /**
@@ -1215,17 +1250,18 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
      * @return UserStoreManager.
      * @throws AuthenticationFailedException If an error occurred while getting the UserStoreManager.
      */
-    private UserStoreManager getUserStoreManager(AuthenticatedUser authenticatedUser)
+    private UserStoreManager getUserStoreManager(AuthenticatedUser authenticatedUser, AuthenticationContext context)
             throws AuthenticationFailedException {
 
-        UserRealm userRealm = getTenantUserRealm(authenticatedUser.getTenantDomain());
+        UserRealm userRealm = getTenantUserRealm(authenticatedUser.getTenantDomain(), context);
         String username = MultitenantUtils.getTenantAwareUsername(authenticatedUser.toFullQualifiedUsername());
         String userstoreDomain = authenticatedUser.getUserStoreDomain();
         try {
             UserStoreManager userStoreManager = userRealm.getUserStoreManager();
             if (userStoreManager == null) {
                 throw handleAuthErrorScenario(
-                        AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_USER_STORE_MANAGER, username);
+                        AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_USER_STORE_MANAGER, context,
+                        username);
             }
             if (StringUtils.isBlank(userstoreDomain) || PRIMARY_DEFAULT_DOMAIN_NAME.equals(userstoreDomain)) {
                 return userStoreManager;
@@ -1233,7 +1269,8 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             return ((AbstractUserStoreManager) userStoreManager).getSecondaryUserStoreManager(userstoreDomain);
         } catch (UserStoreException e) {
             throw handleAuthErrorScenario(
-                    AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_USER_STORE_MANAGER, e, username);
+                    AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_USER_STORE_MANAGER,
+                    e, context, username);
         }
     }
 
@@ -1244,19 +1281,20 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
      * @return UserRealm.
      * @throws AuthenticationFailedException If an error occurred while getting the UserRealm.
      */
-    private UserRealm getTenantUserRealm(String tenantDomain) throws AuthenticationFailedException {
+    private UserRealm getTenantUserRealm(String tenantDomain, AuthenticationContext context)
+            throws AuthenticationFailedException {
 
         int tenantId = IdentityTenantUtil.getTenantId(tenantDomain);
         UserRealm userRealm;
         try {
             userRealm = (AuthenticatorDataHolder.getRealmService()).getTenantUserRealm(tenantId);
         } catch (UserStoreException e) {
-            throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_USER_REALM, e,
-                    tenantDomain);
+            throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_USER_REALM,
+                    e, context, tenantDomain);
         }
         if (userRealm == null) {
             throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_USER_REALM,
-                    tenantDomain);
+                    context, tenantDomain);
         }
         return userRealm;
     }
@@ -1271,17 +1309,18 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
      * @throws AuthenticationFailedException If an error occurred while getting the claim value.
      */
     private String getUserClaimValueFromUserStore(String claimUri, AuthenticatedUser authenticatedUser,
-                                                  AuthenticatorConstants.ErrorMessages error)
+                                                  AuthenticatorConstants.ErrorMessages error,
+                                                  AuthenticationContext context)
             throws AuthenticationFailedException {
 
-        UserStoreManager userStoreManager = getUserStoreManager(authenticatedUser);
+        UserStoreManager userStoreManager = getUserStoreManager(authenticatedUser, context);
         try {
             Map<String, String> claimValues =
                     userStoreManager.getUserClaimValues(MultitenantUtils.getTenantAwareUsername(
                             authenticatedUser.toFullQualifiedUsername()), new String[]{claimUri}, null);
             return claimValues.get(claimUri);
         } catch (UserStoreException e) {
-            throw handleAuthErrorScenario(error, e, authenticatedUser.getUserName());
+            throw handleAuthErrorScenario(error, e, context, authenticatedUser.getUserName());
         }
     }
 
@@ -1304,7 +1343,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         // If the user is federated, we need to check whether the user is already provisioned to the organization.
         String federatedUsername = FederatedAuthenticatorUtil.getLoggedInFederatedUser(context);
         if (StringUtils.isBlank(federatedUsername)) {
-            throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_NO_FEDERATED_USER);
+            throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_NO_FEDERATED_USER, context);
         }
         String associatedLocalUsername =
                 FederatedAuthenticatorUtil.getLocalUsernameAssociatedWithFederatedUser(MultitenantUtils.
@@ -1323,11 +1362,12 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
      * @return JIT provisioning userstore domain.
      * @throws AuthenticationFailedException If an error occurred.
      */
-    private String getFederatedUserstoreDomain(AuthenticatedUser user, String tenantDomain)
+    private String getFederatedUserstoreDomain(AuthenticatedUser user, String tenantDomain,
+                                               AuthenticationContext context)
             throws AuthenticationFailedException {
 
         String federatedIdp = user.getFederatedIdPName();
-        IdentityProvider idp = getIdentityProvider(federatedIdp, tenantDomain);
+        IdentityProvider idp = getIdentityProvider(federatedIdp, tenantDomain, context);
         JustInTimeProvisioningConfig provisioningConfig = idp.getJustInTimeProvisioningConfig();
         if (provisioningConfig == null) {
             if (log.isDebugEnabled()) {
@@ -1344,7 +1384,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         return provisionedUserstore;
     }
 
-    private int getOTPLength(String tenantDomain) throws AuthenticationFailedException {
+    private int getOTPLength(String tenantDomain, AuthenticationContext context) throws AuthenticationFailedException {
 
         try {
             int otpLength = AuthenticatorConstants.DEFAULT_OTP_LENGTH;
@@ -1355,11 +1395,13 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             }
             return otpLength;
         } catch (EmailOtpAuthenticatorServerException exception) {
-            throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_CONFIG);
+            throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_CONFIG,
+                    context);
         }
     }
 
-    private String getOTPCharset(String tenantDomain) throws AuthenticationFailedException {
+    private String getOTPCharset(String tenantDomain, AuthenticationContext context)
+            throws AuthenticationFailedException {
 
         try {
             boolean useOnlyNumericChars = Boolean.parseBoolean(
@@ -1371,22 +1413,26 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             return AuthenticatorConstants.EMAIL_OTP_UPPER_CASE_ALPHABET_CHAR_SET +
                     AuthenticatorConstants.EMAIL_OTP_NUMERIC_CHAR_SET;
         } catch (EmailOtpAuthenticatorServerException exception) {
-            throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_CONFIG);
+            throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_CONFIG,
+                    context);
         }
     }
 
-    private boolean isBackupCodeEnabled(String tenantDomain) throws AuthenticationFailedException {
+    private boolean isBackupCodeEnabled(String tenantDomain , AuthenticationContext context)
+            throws AuthenticationFailedException {
 
         try {
             return Boolean.parseBoolean(
                     AuthenticatorUtils.getEmailAuthenticatorConfig(
                             AuthenticatorConstants.ConnectorConfig.ENABLE_BACKUP_CODES, tenantDomain));
         } catch (EmailOtpAuthenticatorServerException exception) {
-            throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_CONFIG);
+            throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_CONFIG,
+                    context);
         }
     }
 
-    private String getEmailMaskingPattern(String tenantDomain) throws AuthenticationFailedException {
+    private String getEmailMaskingPattern(String tenantDomain, AuthenticationContext context)
+            throws AuthenticationFailedException {
 
         try {
             String regex = AuthenticatorDataHolder.getClaimMetadataManagementService().
@@ -1397,11 +1443,13 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             return AuthenticatorConstants.DEFAULT_EMAIL_MASKING_REGEX;
         } catch (ClaimMetadataException e) {
             throw handleAuthErrorScenario(
-                    AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_EMAIL_MASKING_REGEX, e, tenantDomain);
+                    AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_EMAIL_MASKING_REGEX, e, context,
+                    tenantDomain);
         }
     }
 
-    private long getOtpValidityPeriod(String tenantDomain) throws AuthenticationFailedException {
+    private long getOtpValidityPeriod(String tenantDomain, AuthenticationContext context)
+            throws AuthenticationFailedException {
 
         try {
             String value = AuthenticatorUtils.getEmailAuthenticatorConfig(
@@ -1429,7 +1477,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             return validityTime * 1000;
         } catch (EmailOtpAuthenticatorServerException exception) {
             throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_CONFIG,
-                    exception);
+                    exception, context);
         }
     }
 
@@ -1447,13 +1495,14 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         return new InvalidCredentialsException(error.getCode(), message);
     }
 
-    private AuthenticationFailedException handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages error) {
+    private AuthenticationFailedException handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages error,
+                                                                  AuthenticationContext context) {
 
-        return handleAuthErrorScenario(error, (Object) null);
+        return handleAuthErrorScenario(error, context, (Object) null);
     }
 
     private AuthenticationFailedException handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages error,
-                                                                  Object... data) {
+                                                                  AuthenticationContext context, Object... data) {
 
         return handleAuthErrorScenario(error, null, null, data);
     }
@@ -1468,13 +1517,21 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
      */
     @SuppressFBWarnings("FORMAT_STRING_MANIPULATION")
     private AuthenticationFailedException handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages error,
-                                                                  Throwable throwable, Object... data) {
+                                                                  Throwable throwable, AuthenticationContext context,
+                                                                  Object... data) {
 
         String message = error.getMessage();
         if (data != null) {
             message = String.format(message, data);
         }
         String errorCode = error.getCode();
+
+        if (context != null) {
+            AuthenticatorMessage authenticatorMessage = new AuthenticatorMessage(FrameworkConstants.
+                    AuthenticatorMessageType.ERROR, errorCode, message, null);
+            context.setProperty(AUTHENTICATOR_MESSAGE, authenticatorMessage);
+        }
+
         if (throwable == null) {
             return new AuthenticationFailedException(errorCode, message);
         }
@@ -1489,10 +1546,11 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
      * @return Generated OTP.
      * @throws AuthenticationFailedException If an error occurred.
      */
-    private String generateOTP(String tenantDomain) throws AuthenticationFailedException {
+    private String generateOTP(String tenantDomain, AuthenticationContext context)
+            throws AuthenticationFailedException {
 
-        String charSet = getOTPCharset(tenantDomain);
-        int otpLength = getOTPLength(tenantDomain);
+        String charSet = getOTPCharset(tenantDomain, context);
+        int otpLength = getOTPLength(tenantDomain, context);
 
         char[] chars = charSet.toCharArray();
         SecureRandom rnd = new SecureRandom();
@@ -1531,7 +1589,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             }
         } catch (IOException e) {
             throw handleAuthErrorScenario(
-                    AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_REDIRECTING_TO_IDF_PAGE);
+                    AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_REDIRECTING_TO_IDF_PAGE , context);
         }
     }
 
@@ -1570,7 +1628,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
 
         String identifierFromRequest = request.getParameter(AuthenticatorConstants.USER_NAME);
         if (StringUtils.isBlank(identifierFromRequest)) {
-            throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_EMPTY_USERNAME);
+            throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_EMPTY_USERNAME , null);
         }
         return identifierFromRequest;
     }
@@ -1705,9 +1763,14 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         authenticatorData.setName(getName());
         String idpName = null;
         AuthenticatedUser authenticatedUserFromContext = null;
-        if (context != null && context.getExternalIdP() != null) {
-            idpName = context.getExternalIdP().getIdPName();
-            authenticatedUserFromContext = getAuthenticatedUserFromContext(context);
+        if (context != null) {
+            if (context.getExternalIdP() != null) {
+                idpName = context.getExternalIdP().getIdPName();
+                authenticatedUserFromContext = getAuthenticatedUserFromContext(context);
+            }
+            if (context.getProperty(AUTHENTICATOR_MESSAGE) != null) {
+                authenticatorData.setMessage((AuthenticatorMessage) context.getProperty(AUTHENTICATOR_MESSAGE));
+            }
         }
         authenticatorData.setIdp(idpName);
         authenticatorData.setI18nKey(AuthenticatorConstants.AUTHENTICATOR_EMAIL_OTP);
