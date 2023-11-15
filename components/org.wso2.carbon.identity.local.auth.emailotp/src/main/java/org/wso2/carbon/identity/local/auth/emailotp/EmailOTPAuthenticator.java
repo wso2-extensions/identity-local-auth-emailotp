@@ -30,7 +30,6 @@ import org.wso2.carbon.identity.application.authentication.framework.Authenticat
 import org.wso2.carbon.identity.application.authentication.framework.AuthenticatorFlowStatus;
 import org.wso2.carbon.identity.application.authentication.framework.LocalApplicationAuthenticator;
 import org.wso2.carbon.identity.application.authentication.framework.config.ConfigurationFacade;
-import org.wso2.carbon.identity.application.authentication.framework.config.model.AuthenticatorConfig;
 import org.wso2.carbon.identity.application.authentication.framework.config.model.StepConfig;
 import org.wso2.carbon.identity.application.authentication.framework.context.AuthenticationContext;
 import org.wso2.carbon.identity.application.authentication.framework.exception.AuthenticationFailedException;
@@ -78,6 +77,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 import javax.servlet.http.HttpServletRequest;
@@ -1575,10 +1575,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         String loginPage = ConfigurationFacade.getInstance().getAuthenticationEndpointURL();
         String queryParams = context.getContextIdIncludedQueryParams();
         try {
-            if (log.isDebugEnabled()) {
-                String logMsg = "Redirecting to identifier first flow since no authenticated user was found";
-                log.debug(logMsg);
-            }
+            log.debug("Redirecting to identifier first flow since no authenticated user was found");
             // Redirecting the user to the IDF login page.
             String redirectURL = loginPage + ("?" + queryParams) + "&" + AuthenticatorConstants.AUTHENTICATORS
                     + AuthenticatorConstants.IDF_HANDLER_NAME + ":" + AuthenticatorConstants.LOCAL_AUTHENTICATOR;
@@ -1641,7 +1638,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
      */
     private String getCaptchaParams(HttpServletRequest request, AuthenticationContext context) {
 
-        String captchaParams = "";
+        String captchaParams = StringUtils.EMPTY;
         EmailOTPCaptchaConnector emailOTPCaptchaConnector = new EmailOTPCaptchaConnector();
         emailOTPCaptchaConnector.init(AuthenticatorDataHolder.getIdentityGovernanceService());
         try {
@@ -1668,30 +1665,13 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
      */
     private boolean isPreviousIdPAuthenticationFlowHandler(AuthenticationContext context) {
 
-        boolean hasPreviousAuthenticators = false;
         Map<String, AuthenticatedIdPData> currentAuthenticatedIdPs = context.getCurrentAuthenticatedIdPs();
-        if (currentAuthenticatedIdPs != null && !currentAuthenticatedIdPs.isEmpty()) {
-            for (Map.Entry<String, AuthenticatedIdPData> entry : currentAuthenticatedIdPs.entrySet()) {
-                AuthenticatedIdPData authenticatedIdPData = entry.getValue();
-                if (authenticatedIdPData != null) {
-                    List<AuthenticatorConfig> authenticators = authenticatedIdPData.getAuthenticators();
-                    if (authenticators != null) {
-                        for (AuthenticatorConfig authenticator : authenticators) {
-                            hasPreviousAuthenticators = true;
-                            if (!(authenticator.getApplicationAuthenticator() instanceof AuthenticationFlowHandler)) {
-                                return false;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        if (hasPreviousAuthenticators) {
-            return true;
-        }
-
-        return false;
+        return currentAuthenticatedIdPs != null && !currentAuthenticatedIdPs.isEmpty() &&
+                currentAuthenticatedIdPs.values().stream().filter(Objects::nonNull)
+                        .map(AuthenticatedIdPData::getAuthenticators).filter(Objects::nonNull)
+                        .flatMap(List::stream)
+                        .allMatch(authenticator ->
+                                authenticator.getApplicationAuthenticator() instanceof AuthenticationFlowHandler);
     }
 
     private boolean isEmailOTPAsFirstFactor(AuthenticationContext context) {
