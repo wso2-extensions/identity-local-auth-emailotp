@@ -191,7 +191,7 @@ public class AuthenticatorConstants {
         ERROR_CODE_GETTING_ACCOUNT_STATE("65019", "Error occurred while checking the account locked " +
                 "state for the user: %s"),
         ERROR_CODE_OTP_EXPIRED("65020", "OTP expired for user: %s"),
-        ERROR_CODE_OTP_INVALID("65021", "Invalid coded provided by user: %s"),
+        ERROR_CODE_OTP_INVALID("65021", "Invalid code provided by user: %s"),
         ERROR_CODE_ERROR_GETTING_EMAIL_MASKING_REGEX("65021",
                 "Error occurred while getting the email masking regex from email claim in tenant: %s"),
         ERROR_CODE_ERROR_GETTING_FEDERATED_AUTHENTICATOR("65022", "Error occurred while getting IDP: " +
