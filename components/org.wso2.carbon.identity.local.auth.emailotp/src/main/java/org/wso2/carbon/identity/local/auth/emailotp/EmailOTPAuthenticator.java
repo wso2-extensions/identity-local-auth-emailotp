@@ -1773,7 +1773,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         authenticatorData.setPromptType(FrameworkConstants.AuthenticatorPromptType.USER_PROMPT);
         authenticatorData.setRequiredParams(requiredParams);
         authenticatorData.setAuthParams(authenticatorParamMetadataList);
-        if (context.getProperty(AUTHENTICATOR_MESSAGE) != null) {
+        if (context != null && context.getProperty(AUTHENTICATOR_MESSAGE) != null) {
             authenticatorData.setMessage((AuthenticatorMessage) context.getProperty(AUTHENTICATOR_MESSAGE));
         }
         return Optional.of(authenticatorData);
