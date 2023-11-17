@@ -90,6 +90,8 @@ import static org.wso2.carbon.identity.event.IdentityEventConstants.EventPropert
 import static org.wso2.carbon.identity.event.IdentityEventConstants.EventProperty.USER_STORE_MANAGER;
 import static org.wso2.carbon.identity.event.handler.notification.NotificationConstants.ARBITRARY_SEND_TO;
 import static org.wso2.carbon.identity.event.handler.notification.NotificationConstants.EmailNotification.EMAIL_TEMPLATE_TYPE;
+import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.CODE;
+import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.DISPLAY_CODE;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.LogConstants.ActionIDs.INITIATE_EMAIL_OTP_REQUEST;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.LogConstants.ActionIDs.PROCESS_AUTHENTICATION_RESPONSE;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.LogConstants.EMAIL_OTP_SERVICE;
@@ -141,8 +143,8 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             log.debug("Inside EmailOTPAuthenticator canHandle method");
         }
         boolean canHandle = ((StringUtils.isNotBlank(request.getParameter(AuthenticatorConstants.RESEND))
-                && StringUtils.isBlank(request.getParameter(AuthenticatorConstants.CODE)))
-                || StringUtils.isNotBlank(request.getParameter(AuthenticatorConstants.CODE))
+                && StringUtils.isBlank(request.getParameter(CODE)))
+                || StringUtils.isNotBlank(request.getParameter(CODE))
                 || StringUtils.isNotBlank(request.getParameter(AuthenticatorConstants.USER_NAME)));
         if (canHandle && LoggerUtils.isDiagnosticLogsEnabled()) {
             DiagnosticLog.DiagnosticLogBuilder diagnosticLogBuilder = new DiagnosticLog.DiagnosticLogBuilder(
@@ -326,7 +328,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_USER_ACCOUNT_LOCKED, context,
                     authenticatingUser.getUserName());
         }
-        if (StringUtils.isBlank(request.getParameter(AuthenticatorConstants.CODE))) {
+        if (StringUtils.isBlank(request.getParameter(CODE))) {
             throw handleInvalidCredentialsScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_EMPTY_OTP_CODE,
                     authenticatedUserFromContext.getUserName());
         }
@@ -335,7 +337,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
                     authenticatedUserFromContext.getUserName());
         }
         boolean isSuccessfulAttempt =
-                isSuccessfulAuthAttempt(request.getParameter(AuthenticatorConstants.CODE), applicationTenantDomain,
+                isSuccessfulAuthAttempt(request.getParameter(CODE), applicationTenantDomain,
                         authenticatingUser, context);
         if (isSuccessfulAttempt) {
             // It reached here means the authentication was successful.
@@ -465,7 +467,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
 
         if (context.isLogoutRequest()) {
             return AuthenticatorConstants.AuthenticationScenarios.LOGOUT;
-        } else if (!context.isRetrying() && StringUtils.isBlank(request.getParameter(AuthenticatorConstants.CODE)) &&
+        } else if (!context.isRetrying() && StringUtils.isBlank(request.getParameter(CODE)) &&
                 StringUtils.isBlank(request.getParameter(AuthenticatorConstants.RESEND))) {
             return AuthenticatorConstants.AuthenticationScenarios.INITIAL_OTP;
         } else if (context.isRetrying() &&
@@ -689,7 +691,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         if (StringUtils.isNotBlank(context.getServiceProviderName())) {
             metaProperties.put(AuthenticatorConstants.SERVICE_PROVIDER_NAME, context.getServiceProviderName());
         }
-        metaProperties.put(AuthenticatorConstants.CODE, otp);
+        metaProperties.put(CODE, otp);
         metaProperties.put(EMAIL_TEMPLATE_TYPE, AuthenticatorConstants.EMAIL_OTP_TEMPLATE_NAME);
         metaProperties.put(ARBITRARY_SEND_TO, email);
         String maskedEmailAddress = getMaskedEmailAddress(authenticatedUser.getUserName(), email, tenantDomain,
@@ -833,14 +835,14 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         eventProperties.put(IdentityEventConstants.EventProperty.CORRELATION_ID, context.getCallerSessionKey());
         eventProperties.put(IdentityEventConstants.EventProperty.APPLICATION_NAME, context.getServiceProviderName());
         eventProperties.put(IdentityEventConstants.EventProperty.USER_INPUT_OTP, request.getParameter(
-                AuthenticatorConstants.CODE));
+                CODE));
         eventProperties.put(IdentityEventConstants.EventProperty.OTP_USED_TIME, System.currentTimeMillis());
 
         // Add otp status to the event properties.
         if (isAuthenticationPassed) {
             eventProperties.put(IdentityEventConstants.EventProperty.OTP_STATUS, AuthenticatorConstants.STATUS_SUCCESS);
             eventProperties.put(IdentityEventConstants.EventProperty.GENERATED_OTP, request.getParameter(
-                    AuthenticatorConstants.CODE));
+                    CODE));
         } else {
             if (isExpired) {
                 eventProperties.put(IdentityEventConstants.EventProperty.OTP_STATUS,
@@ -1759,16 +1761,17 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         List<String> requiredParams = new ArrayList<>();
         if (authenticatedUserFromContext == null) {
             AuthenticatorParamMetadata usernameMetadata = new AuthenticatorParamMetadata(
-                    AuthenticatorConstants.USER_NAME, FrameworkConstants.AuthenticatorParamType.STRING,
-                    0, Boolean.FALSE, AuthenticatorConstants.USERNAME_PARAM);
+                    AuthenticatorConstants.USER_NAME, AuthenticatorConstants.DISPLAY_USER_NAME,
+                    FrameworkConstants.AuthenticatorParamType.STRING, 0, Boolean.FALSE,
+                    AuthenticatorConstants.USERNAME_PARAM);
             authenticatorParamMetadataList.add(usernameMetadata);
             requiredParams.add(AuthenticatorConstants.USER_NAME);
         } else {
             AuthenticatorParamMetadata codeMetadata = new AuthenticatorParamMetadata(
-                    AuthenticatorConstants.CODE, FrameworkConstants.AuthenticatorParamType.STRING,
+                    CODE, DISPLAY_CODE, FrameworkConstants.AuthenticatorParamType.STRING,
                     1, Boolean.TRUE, AuthenticatorConstants.CODE_PARAM);
             authenticatorParamMetadataList.add(codeMetadata);
-            requiredParams.add(AuthenticatorConstants.CODE);
+            requiredParams.add(CODE);
         }
         authenticatorData.setPromptType(FrameworkConstants.AuthenticatorPromptType.USER_PROMPT);
         authenticatorData.setRequiredParams(requiredParams);

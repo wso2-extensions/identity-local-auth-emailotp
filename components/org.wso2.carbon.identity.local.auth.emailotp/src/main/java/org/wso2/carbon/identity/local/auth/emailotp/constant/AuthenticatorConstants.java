@@ -46,6 +46,7 @@ public class AuthenticatorConstants {
 
     public static final String RESEND = "resendCode";
     public static final String CODE = "OTPCode";
+    public static final String DISPLAY_CODE = "Code";
     public static final String OTP_TOKEN = "otpToken";
     public static final String EMAIL_OTP_TEMPLATE_NAME = "EmailOTP";
     public static final String RESEND_EMAIL_OTP_TEMPLATE_NAME = "ResendEmailOTP";
@@ -87,6 +88,7 @@ public class AuthenticatorConstants {
     public static final String LOCAL_AUTHENTICATOR = "LOCAL";
     public static final String IS_IDF_INITIATED_FROM_AUTHENTICATOR = "isIdfInitiatedFromAuthenticator";
     public static final String USER_NAME = "username";
+    public static final String DISPLAY_USER_NAME = "Username";
     public static final String IS_REDIRECT_TO_EMAIL_OTP = "isRedirectToEmailOTP";
 
     /**

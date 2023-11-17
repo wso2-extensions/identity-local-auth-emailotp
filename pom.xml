@@ -297,7 +297,7 @@
         <encoder.wso2.import.version.range>[1.2.0, 2.0.0)</encoder.wso2.import.version.range>
 
         <carbon.kernel.version>4.9.10</carbon.kernel.version>
-        <carbon.identity.framework.version>5.25.503</carbon.identity.framework.version>
+        <carbon.identity.framework.version>5.25.522</carbon.identity.framework.version>
         <carbon.identity.governance.version>1.8.40</carbon.identity.governance.version>
         <carbon.identity.handler.event.account.lock.version>1.8.2</carbon.identity.handler.event.account.lock.version>
         <carbon.extension.identity.helper.version>1.0.12</carbon.extension.identity.helper.version>
