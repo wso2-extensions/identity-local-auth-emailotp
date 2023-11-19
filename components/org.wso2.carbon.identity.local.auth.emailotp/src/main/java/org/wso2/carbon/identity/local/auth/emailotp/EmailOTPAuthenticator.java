@@ -383,6 +383,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_OTP_EXPIRED, context,
                     authenticatedUserFromContext.getUserName());
         } else {
+            context.setRetrying(true);
             publishPostEmailOTPValidatedEvent(authenticatedUserFromContext, false,
                     false, request, context);
             throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_OTP_INVALID, context,
