@@ -197,7 +197,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
                 return;
             }
             if (StringUtils.isEmpty(request.getParameter(AuthenticatorConstants.USER_NAME))) {
-                redirectUserToIDF(response, context);
+                redirectUserToIDF(request, response, context);
                 context.setProperty(AuthenticatorConstants.IS_IDF_INITIATED_FROM_AUTHENTICATOR, true);
                 return;
             }
@@ -1564,16 +1564,19 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
     /**
      * This method is used to redirect the user to the username entering page (IDF: Identifier first).
      *
-     * @param context  The authentication context
+     * @param request  Request
      * @param response Response
+     * @param context  The authentication context
      * @throws AuthenticationFailedException
      */
     @SuppressFBWarnings("UNVALIDATED_REDIRECT")
-    private void redirectUserToIDF(HttpServletResponse response, AuthenticationContext context)
+    private void redirectUserToIDF(HttpServletRequest request, HttpServletResponse response,
+                                   AuthenticationContext context)
             throws AuthenticationFailedException {
 
         String loginPage = ConfigurationFacade.getInstance().getAuthenticationEndpointURL();
         String queryParams = context.getContextIdIncludedQueryParams();
+
         try {
             if (log.isDebugEnabled()) {
                 String logMsg = "Redirecting to identifier first flow since no authenticated user was found";
@@ -1582,6 +1585,10 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             // Redirecting the user to the IDF login page.
             String redirectURL = loginPage + ("?" + queryParams) + "&" + AuthenticatorConstants.AUTHENTICATORS
                     + AuthenticatorConstants.IDF_HANDLER_NAME + ":" + AuthenticatorConstants.LOCAL_AUTHENTICATOR;
+
+            // Consider the multi-option parameter in the request to provide the support to go back.
+            String multiOptionURIQueryParam = AuthenticatorUtils.getMultiOptionURIQueryParam(request);
+            redirectURL = redirectURL + multiOptionURIQueryParam;
             response.sendRedirect(redirectURL);
             if (LoggerUtils.isDiagnosticLogsEnabled()) {
                 publishInitiateAuthRedirectionDiagnosticLogs("Redirecting to identifier first flow since no " +
