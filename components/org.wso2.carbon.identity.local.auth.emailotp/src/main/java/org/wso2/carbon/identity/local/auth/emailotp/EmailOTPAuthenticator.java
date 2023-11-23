@@ -199,7 +199,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
                 return;
             }
             if (StringUtils.isEmpty(request.getParameter(AuthenticatorConstants.USER_NAME))) {
-                redirectUserToIDF(response, context);
+                redirectUserToIDF(response, context, request);
                 context.setProperty(AuthenticatorConstants.IS_IDF_INITIATED_FROM_AUTHENTICATOR, true);
                 return;
             }
@@ -1571,16 +1571,18 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
      * @throws AuthenticationFailedException
      */
     @SuppressFBWarnings("UNVALIDATED_REDIRECT")
-    private void redirectUserToIDF(HttpServletResponse response, AuthenticationContext context)
-            throws AuthenticationFailedException {
+    private void redirectUserToIDF(HttpServletResponse response, AuthenticationContext context,
+                                   HttpServletRequest request) throws AuthenticationFailedException {
 
         String loginPage = ConfigurationFacade.getInstance().getAuthenticationEndpointURL();
         String queryParams = context.getContextIdIncludedQueryParams();
+        String multiOptionURI = AuthenticatorUtils.getMultiOptionURIQueryParam(request);
         try {
             log.debug("Redirecting to identifier first flow since no authenticated user was found");
             // Redirecting the user to the IDF login page.
             String redirectURL = loginPage + ("?" + queryParams) + "&" + AuthenticatorConstants.AUTHENTICATORS
-                    + AuthenticatorConstants.IDF_HANDLER_NAME + ":" + AuthenticatorConstants.LOCAL_AUTHENTICATOR;
+                    + AuthenticatorConstants.IDF_HANDLER_NAME + ":" + AuthenticatorConstants.LOCAL_AUTHENTICATOR
+                    + multiOptionURI;
             response.sendRedirect(redirectURL);
             if (LoggerUtils.isDiagnosticLogsEnabled()) {
                 publishInitiateAuthRedirectionDiagnosticLogs("Redirecting to identifier first flow since no " +
