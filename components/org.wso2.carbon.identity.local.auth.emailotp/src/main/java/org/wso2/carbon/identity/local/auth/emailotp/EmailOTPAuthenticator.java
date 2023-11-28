@@ -110,6 +110,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
     private static final String EMAIL_OTP_SENT = "EmailOTPSent";
     private static final String MASKED_EMAIL = "maskedEmail";
     private static final String AUTHENTICATOR_MESSAGE = "authenticatorMessage";
+    private static final String IS_USER_NAME_RESOLVED = "isUserNameResolved";
 
     @Override
     public String getFriendlyName() {
@@ -207,6 +208,9 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             // When username is obtained through IDF page and the user is not yet set in the context.
             AuthenticatedUser authenticatedUser = resolveUser(request, context);
             user = getUser(authenticatedUser);
+            if ((resolveUsernameFromRequest(request) != null) && (user == null)) {
+                context.setProperty(IS_USER_NAME_RESOLVED, false);
+            }
             if (user != null) {
                 UserCoreUtil.setDomainInThreadLocal(user.getUserStoreDomain());
                 authenticatedUser =
@@ -1761,19 +1765,20 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
 
         List<AuthenticatorParamMetadata> authenticatorParamMetadataList = new ArrayList<>();
         List<String> requiredParams = new ArrayList<>();
-        if (authenticatedUserFromContext == null) {
-            AuthenticatorParamMetadata usernameMetadata = new AuthenticatorParamMetadata(
-                    AuthenticatorConstants.USER_NAME, AuthenticatorConstants.DISPLAY_USER_NAME,
-                    FrameworkConstants.AuthenticatorParamType.STRING, 0, Boolean.FALSE,
-                    AuthenticatorConstants.USERNAME_PARAM);
-            authenticatorParamMetadataList.add(usernameMetadata);
-            requiredParams.add(AuthenticatorConstants.USER_NAME);
+        if ((context != null) && (authenticatedUserFromContext == null)) {
+            Object propertyValue = context.getProperty(IS_USER_NAME_RESOLVED);
+            if (propertyValue instanceof Boolean && !(Boolean) propertyValue) {
+                setCodeMetaData(authenticatorParamMetadataList, requiredParams);
+            } else {
+                AuthenticatorParamMetadata usernameMetadata = new AuthenticatorParamMetadata(
+                        AuthenticatorConstants.USER_NAME, AuthenticatorConstants.DISPLAY_USER_NAME,
+                        FrameworkConstants.AuthenticatorParamType.STRING, 0, Boolean.FALSE,
+                        AuthenticatorConstants.USERNAME_PARAM);
+                authenticatorParamMetadataList.add(usernameMetadata);
+                requiredParams.add(AuthenticatorConstants.USER_NAME);
+            }
         } else {
-            AuthenticatorParamMetadata codeMetadata = new AuthenticatorParamMetadata(
-                    CODE, DISPLAY_CODE, FrameworkConstants.AuthenticatorParamType.STRING,
-                    1, Boolean.TRUE, AuthenticatorConstants.CODE_PARAM);
-            authenticatorParamMetadataList.add(codeMetadata);
-            requiredParams.add(CODE);
+            setCodeMetaData(authenticatorParamMetadataList, requiredParams);
         }
         authenticatorData.setPromptType(FrameworkConstants.AuthenticatorPromptType.USER_PROMPT);
         authenticatorData.setRequiredParams(requiredParams);
@@ -1782,6 +1787,16 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             authenticatorData.setMessage((AuthenticatorMessage) context.getProperty(AUTHENTICATOR_MESSAGE));
         }
         return Optional.of(authenticatorData);
+    }
+
+    private static void setCodeMetaData(List<AuthenticatorParamMetadata> authenticatorParamMetadataList,
+                                  List<String> requiredParams) {
+
+        AuthenticatorParamMetadata codeMetadata = new AuthenticatorParamMetadata(
+                CODE, DISPLAY_CODE, FrameworkConstants.AuthenticatorParamType.STRING,
+                1, Boolean.TRUE, AuthenticatorConstants.CODE_PARAM);
+        authenticatorParamMetadataList.add(codeMetadata);
+        requiredParams.add(CODE);
     }
 
     /**
