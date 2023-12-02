@@ -119,6 +119,12 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
     }
 
     @Override
+    public String getI18nKey() {
+
+        return AuthenticatorConstants.AUTHENTICATOR_EMAIL_OTP;
+    }
+
+    @Override
     public String getName() {
 
         return AuthenticatorConstants.EMAIL_OTP_AUTHENTICATOR_NAME;
