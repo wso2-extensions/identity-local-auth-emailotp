@@ -99,6 +99,7 @@ public class AuthenticatorConstants {
         public static final String OTP_EXPIRY_TIME = "EmailOTP.ExpiryTime";
         public static final String ENABLE_BACKUP_CODES = "EmailOTP.EnableBackupCodes";
         public static final String EMAIL_OTP_LENGTH = "EmailOTP.OTPLength";
+        public static final String EMAIL_OTP_USE_ALPHANUMERIC_CHARS = "EmailOTP.UseAlphanumericChars";
         public static final String EMAIL_OTP_USE_NUMERIC_CHARS = "EmailOTP.OtpRegex.UseNumericChars";
     }
 
