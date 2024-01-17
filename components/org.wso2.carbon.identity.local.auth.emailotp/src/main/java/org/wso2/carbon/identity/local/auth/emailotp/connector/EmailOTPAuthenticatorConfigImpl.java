@@ -74,8 +74,8 @@ public class EmailOTPAuthenticatorConfigImpl implements IdentityConnectorConfig 
         nameMapping.put(AuthenticatorConstants.ConnectorConfig.ENABLE_BACKUP_CODES,
                 "Enable authenticate with backup codes");
         nameMapping.put(AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_LENGTH, "Email OTP token length");
-        nameMapping.put(AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_USE_NUMERIC_CHARS,
-                "Use only numeric characters for OTP token");
+        nameMapping.put(AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_USE_ALPHANUMERIC_CHARS,
+                "Use alphanumeric characters for OTP token");
         return nameMapping;
     }
 
@@ -89,8 +89,8 @@ public class EmailOTPAuthenticatorConfigImpl implements IdentityConnectorConfig 
                 "Allow users to login with backup codes");
         descriptionMapping.put(AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_LENGTH,
                 "Number of characters in the OTP token");
-        descriptionMapping.put(AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_USE_NUMERIC_CHARS,
-                "Enabling this will only generate OTP tokens with 0-9 characters");
+        descriptionMapping.put(AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_USE_ALPHANUMERIC_CHARS,
+                "Enabling this will generate OTP tokens with 0-9 and alphabetic characters");
         return descriptionMapping;
     }
 
@@ -101,6 +101,7 @@ public class EmailOTPAuthenticatorConfigImpl implements IdentityConnectorConfig 
         properties.add(AuthenticatorConstants.ConnectorConfig.OTP_EXPIRY_TIME);
         properties.add(AuthenticatorConstants.ConnectorConfig.ENABLE_BACKUP_CODES);
         properties.add(AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_LENGTH);
+        properties.add(AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_USE_ALPHANUMERIC_CHARS);
         properties.add(AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_USE_NUMERIC_CHARS);
         return properties.toArray(new String[0]);
     }
@@ -111,12 +112,15 @@ public class EmailOTPAuthenticatorConfigImpl implements IdentityConnectorConfig 
         // 5 minutes in seconds.
         String otpExpiryTime = "300";
         String useBackupCodes = "false";
+        String useAlphanumericChars = "false";
         String useNumericChars = "true";
         String otpLength = Integer.toString(AuthenticatorConstants.DEFAULT_OTP_LENGTH);
 
         String otpExpiryTimeProperty = IdentityUtil.getProperty(AuthenticatorConstants.ConnectorConfig.OTP_EXPIRY_TIME);
         String useBackupCodesProperty = IdentityUtil.getProperty(
                 AuthenticatorConstants.ConnectorConfig.ENABLE_BACKUP_CODES);
+        String useAlphanumericCharsProperty = IdentityUtil.getProperty(
+                AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_USE_ALPHANUMERIC_CHARS);
         String useNumericCharsProperty = IdentityUtil.getProperty(
                 AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_USE_NUMERIC_CHARS);
         String otpLengthProperty = IdentityUtil.getProperty(AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_LENGTH);
@@ -127,6 +131,9 @@ public class EmailOTPAuthenticatorConfigImpl implements IdentityConnectorConfig 
         if (StringUtils.isNotBlank(useBackupCodesProperty)) {
             useBackupCodes = useBackupCodesProperty;
         }
+        if (StringUtils.isNotBlank(useAlphanumericCharsProperty)) {
+            useAlphanumericChars = useAlphanumericCharsProperty;
+        }
         if (StringUtils.isNotBlank(useNumericCharsProperty)) {
             useNumericChars = useNumericCharsProperty;
         }
@@ -136,6 +143,8 @@ public class EmailOTPAuthenticatorConfigImpl implements IdentityConnectorConfig 
         Map<String, String> defaultProperties = new HashMap<>();
         defaultProperties.put(AuthenticatorConstants.ConnectorConfig.OTP_EXPIRY_TIME, otpExpiryTime);
         defaultProperties.put(AuthenticatorConstants.ConnectorConfig.ENABLE_BACKUP_CODES, useBackupCodes);
+        defaultProperties.put(AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_USE_ALPHANUMERIC_CHARS,
+                useAlphanumericChars);
         defaultProperties.put(AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_USE_NUMERIC_CHARS, useNumericChars);
         defaultProperties.put(AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_LENGTH, otpLength);
 
