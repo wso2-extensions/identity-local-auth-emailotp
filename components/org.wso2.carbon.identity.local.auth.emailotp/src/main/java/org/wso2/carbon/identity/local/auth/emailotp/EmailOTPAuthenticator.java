@@ -704,6 +704,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         metaProperties.put(CODE, otp);
         metaProperties.put(EMAIL_TEMPLATE_TYPE, AuthenticatorConstants.EMAIL_OTP_TEMPLATE_NAME);
         metaProperties.put(ARBITRARY_SEND_TO, email);
+        metaProperties.put(IdentityEventConstants.EventProperty.APPLICATION_DOMAIN, tenantDomain);
         String maskedEmailAddress = getMaskedEmailAddress(authenticatedUser.getUserName(), email, tenantDomain,
                 context);
         setAuthenticatorMessage(context, maskedEmailAddress);
