@@ -213,7 +213,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
 
             // When username is obtained through IDF page and the user is not yet set in the context.
             AuthenticatedUser authenticatedUser = resolveUser(request, context);
-            user = getUser(authenticatedUser);
+            user = getUser(authenticatedUser, context);
             if ((resolveUsernameFromRequest(request) != null) && (user == null)) {
                 context.setProperty(IS_USER_NAME_RESOLVED, false);
             }
