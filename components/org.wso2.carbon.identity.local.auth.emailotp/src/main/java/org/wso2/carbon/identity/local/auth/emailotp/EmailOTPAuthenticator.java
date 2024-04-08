@@ -279,7 +279,8 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             return;
         }
 
-        if (context.isRetrying() && Boolean.parseBoolean(String.valueOf(context.getProperty("isAccountLocked")))) {
+        if (context.isRetrying() && Boolean.parseBoolean(
+                String.valueOf(context.getProperty(AuthenticatorConstants.ACCOUNT_LOCKED)))) {
             handleOTPForLockedUser(authenticatingUser, request, response, context);
             return;
         }
@@ -348,7 +349,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
                         authenticatingUser, context);
         if (isSuccessfulAttempt) {
             if (!isInitialFederationAttempt && AuthenticatorUtils.isAccountLocked(authenticatingUser)) {
-                context.setProperty("isAccountLocked", true);
+                context.setProperty(AuthenticatorConstants.ACCOUNT_LOCKED, true);
                 throw handleAuthErrorScenario(
                     AuthenticatorConstants.ErrorMessages.ERROR_CODE_USER_ACCOUNT_LOCKED, context,
                         authenticatingUser.getUserName());
@@ -988,7 +989,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         }
         queryParams += AuthenticatorConstants.ERROR_CODE_QUERY_PARAM + USER_IS_LOCKED;
         retryParam = AuthenticatorConstants.ERROR_USER_ACCOUNT_LOCKED_QUERY_PARAMS;
-        context.removeProperty("isAccountLocked");
+        context.removeProperty(AuthenticatorConstants.ACCOUNT_LOCKED);
         redirectToErrorPage(request, response, context, queryParams, retryParam);
         if (LoggerUtils.isDiagnosticLogsEnabled()) {
             publishInitiateAuthRedirectionDiagnosticLogs("Redirecting to error page.", context);
