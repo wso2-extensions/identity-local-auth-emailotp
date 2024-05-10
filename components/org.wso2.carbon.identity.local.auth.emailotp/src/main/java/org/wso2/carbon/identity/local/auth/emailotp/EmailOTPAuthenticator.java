@@ -1756,6 +1756,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
 
         AuthenticatorData authenticatorData = new AuthenticatorData();
         authenticatorData.setName(getName());
+        authenticatorData.setDisplayName(getFriendlyName());
         String idpName = null;
         AuthenticatedUser authenticatedUserFromContext = null;
         if (context != null) {
