@@ -56,6 +56,7 @@ import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
 import org.wso2.carbon.identity.event.IdentityEventConstants;
 import org.wso2.carbon.identity.event.IdentityEventException;
 import org.wso2.carbon.identity.event.event.Event;
+import org.wso2.carbon.identity.event.handler.notification.NotificationConstants;
 import org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants;
 import org.wso2.carbon.identity.local.auth.emailotp.exception.EmailOtpAuthenticatorServerException;
 import org.wso2.carbon.identity.local.auth.emailotp.internal.AuthenticatorDataHolder;
@@ -920,6 +921,10 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             throws AuthenticationFailedException {
 
         HashMap<String, Object> properties = new HashMap<>();
+        if (user.isFederatedUser()) {
+            properties.put(NotificationConstants.IS_FEDERATED_USER, user.isFederatedUser());
+            properties.put(NotificationConstants.FEDERATED_USER_CLAIMS, user.getUserAttributes());
+        }
         properties.put(IdentityEventConstants.EventProperty.USER_NAME, user.getUserName());
         properties.put(IdentityEventConstants.EventProperty.USER_STORE_DOMAIN, user.getUserStoreDomain());
         properties.put(IdentityEventConstants.EventProperty.TENANT_DOMAIN, user.getTenantDomain());
