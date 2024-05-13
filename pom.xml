@@ -301,7 +301,7 @@
         <carbon.identity.governance.version>1.8.40</carbon.identity.governance.version>
         <carbon.identity.handler.event.account.lock.version>1.8.2</carbon.identity.handler.event.account.lock.version>
         <carbon.extension.identity.helper.version>1.0.12</carbon.extension.identity.helper.version>
-        <carbon.identity.event.handler.notification.version>1.7.12</carbon.identity.event.handler.notification.version>
+        <carbon.identity.event.handler.notification.version>1.8.17</carbon.identity.event.handler.notification.version>
         <owasp.encoder.version>1.2.0.wso2v1</owasp.encoder.version>
         <mockito-inline.version>3.8.0</mockito-inline.version>
 
