@@ -55,6 +55,7 @@ public class AuthenticatorConstants {
     public static final String OTP_EXPIRED = "isOTPExpired";
     public static final String OTP_GENERATED_TIME = "tokenGeneratedTime";
     public static final String SERVICE_PROVIDER_NAME = "serviceProviderName";
+    public static final String ACCOUNT_LOCKED = "isAccountLocked";
     public static final String BACKUP_CODES_SEPARATOR = ",";
 
     // OTP validation states.
