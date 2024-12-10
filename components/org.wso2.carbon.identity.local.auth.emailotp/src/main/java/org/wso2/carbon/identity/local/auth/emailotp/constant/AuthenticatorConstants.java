@@ -39,6 +39,7 @@ public class AuthenticatorConstants {
     public static final String CODE_PARAM = "code.param";
     public static final String USER_PROMPT = "USER_PROMPT";
     public static final String AUTHENTICATOR_EMAIL_OTP = "authenticator.email.otp";
+    public static final String PROPERTY_ACCOUNT_LOCK_ON_FAILURE = "account.lock.handler.enable";
 
     // OTP generation.
     public static final String EMAIL_OTP_UPPER_CASE_ALPHABET_CHAR_SET = "KIGXHOYSPRWCEFMVUQLZDNABJT";
@@ -74,6 +75,7 @@ public class AuthenticatorConstants {
     public static final String ERROR_CODE_QUERY_PARAM = "&errorCode=";
     public static final String RESEND_CODE_PARAM = "&resendCode=true";
     public static final String MULTI_OPTION_QUERY_PARAM = "multiOptionURI";
+    public static final String REMAINING_NUMBER_OF_EMAIL_OTP_ATTEMPTS_QUERY = "&remainingNumberOfEmailOtpAttempts=";
 
     // Endpoint URLs.
     public static final String EMAIL_OTP_AUTHENTICATION_ENDPOINT_URL = "EMAILOTPAuthenticationEndpointURL";
@@ -91,6 +93,7 @@ public class AuthenticatorConstants {
     public static final String USER_NAME = "username";
     public static final String DISPLAY_USER_NAME = "Username";
     public static final String IS_REDIRECT_TO_EMAIL_OTP = "isRedirectToEmailOTP";
+    public static final String CONF_SHOW_AUTH_FAILURE_REASON = "showAuthFailureReason";
 
     /**
      * Authenticator config related configurations.

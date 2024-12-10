@@ -39,6 +39,9 @@ import java.net.URISyntaxException;
 
 import javax.servlet.http.HttpServletRequest;
 
+import static org.wso2.carbon.identity.handler.event.account.lock.constants.AccountConstants.ACCOUNT_UNLOCK_TIME_PROPERTY;
+import static org.wso2.carbon.identity.handler.event.account.lock.constants.AccountConstants.FAILED_LOGIN_ATTEMPTS_PROPERTY;
+import static org.wso2.carbon.identity.handler.event.account.lock.constants.AccountConstants.LOGIN_FAIL_TIMEOUT_RATIO_PROPERTY;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.EMAIL_OTP_AUTHENTICATION_ENDPOINT_URL;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.EMAIL_OTP_AUTHENTICATION_ERROR_PAGE_URL;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.EMAIL_OTP_PAGE;
@@ -169,6 +172,34 @@ public class AuthenticatorUtils {
         }
         // URL from the configuration was an absolute one. We return the same without any modification.
         return contextToBuildURL;
+    }
+
+    /**
+     * Get Account Lock Connector Configs.
+     *
+     * @param tenantDomain Tenant domain.
+     * @return AccountLockConnectorConfigs Account Lock Connector Configs.
+     * @throws AuthenticationFailedException Exception on authentication failure.
+     */
+    public static Property[] getAccountLockConnectorConfigs(String tenantDomain) throws
+            AuthenticationFailedException {
+
+        Property[] connectorConfigs;
+        try {
+            connectorConfigs = AuthenticatorDataHolder
+                    .getIdentityGovernanceService()
+                    .getConfiguration(
+                            new String[]{
+                                    LOGIN_FAIL_TIMEOUT_RATIO_PROPERTY,
+                                    AuthenticatorConstants.PROPERTY_ACCOUNT_LOCK_ON_FAILURE,
+                                    FAILED_LOGIN_ATTEMPTS_PROPERTY,
+                                    ACCOUNT_UNLOCK_TIME_PROPERTY
+                            }, tenantDomain);
+        } catch (Exception e) {
+            throw new AuthenticationFailedException("Error occurred while retrieving account lock connector " +
+                    "configuration for tenant : " +  tenantDomain, e);
+        }
+        return connectorConfigs;
     }
 
     private static boolean isURLRelative(String contextFromConfig) throws URISyntaxException {
