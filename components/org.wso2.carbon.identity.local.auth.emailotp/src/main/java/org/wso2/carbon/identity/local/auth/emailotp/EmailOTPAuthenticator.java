@@ -91,6 +91,7 @@ import static org.wso2.carbon.identity.event.IdentityEventConstants.EventPropert
 import static org.wso2.carbon.identity.event.IdentityEventConstants.EventProperty.USER_STORE_MANAGER;
 import static org.wso2.carbon.identity.event.handler.notification.NotificationConstants.ARBITRARY_SEND_TO;
 import static org.wso2.carbon.identity.event.handler.notification.NotificationConstants.EmailNotification.EMAIL_TEMPLATE_TYPE;
+import static org.wso2.carbon.identity.handler.event.account.lock.constants.AccountConstants.FAILED_LOGIN_ATTEMPTS_PROPERTY;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.CODE;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.DISPLAY_CODE;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.LogConstants.ActionIDs.INITIATE_EMAIL_OTP_REQUEST;
@@ -788,6 +789,11 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
                             AuthenticatorConstants.IS_IDF_INITIATED_FROM_AUTHENTICATOR)))) {
                 url = url + AuthenticatorConstants.SCREEN_VALUE_QUERY_PARAM +
                         getMaskedEmailAddress(username, email, tenantDomain, context);
+            }
+            if (Boolean.parseBoolean(getAuthenticatorConfig().getParameterMap()
+                    .get(AuthenticatorConstants.CONF_SHOW_AUTH_FAILURE_REASON))) {
+                url = url + AuthenticatorConstants.REMAINING_NUMBER_OF_EMAIL_OTP_ATTEMPTS_QUERY +
+                        getRemainingNumberOfOtpAttempts(tenantDomain, context);
             }
             if (context.isRetrying() && !Boolean.parseBoolean(request.getParameter(AuthenticatorConstants.RESEND))) {
                 url = url + AuthenticatorConstants.RETRY_QUERY_PARAMS;
@@ -1815,6 +1821,49 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
                 1, Boolean.TRUE, AuthenticatorConstants.CODE_PARAM);
         authenticatorParamMetadataList.add(codeMetadata);
         requiredParams.add(CODE);
+    }
+
+    /**
+     * Get remaining number of otp attempts.
+     *
+     * @param tenantDomain Tenant domain.
+     * @param context      Authentication context.
+     * @return Remaining number of otp attempts.
+     * @throws AuthenticationFailedException Exception on authentication failure.
+     */
+    private int getRemainingNumberOfOtpAttempts(String tenantDomain, AuthenticationContext context)
+            throws AuthenticationFailedException {
+
+        AuthenticatedUser authenticatedUser = getAuthenticatedUserFromContext(context);
+        if (authenticatedUser == null) {
+            throw handleAuthErrorScenario(
+                    AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_AUTHENTICATED_USER, context);
+        }
+        try {
+            UserStoreManager userStoreManager = getUserStoreManager(authenticatedUser, context);
+            String failedAttemptsClaim = AuthenticatorConstants.Claims.EMAIL_OTP_FAILED_ATTEMPTS_CLAIM;
+            if (userStoreManager == null) {
+                throw handleAuthErrorScenario(
+                        AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_USER_STORE_MANAGER, context);
+            }
+            String fullQualifiedUsername = authenticatedUser.toFullQualifiedUsername();
+            Map<String, String> claimValues =
+                    userStoreManager.getUserClaimValues(MultitenantUtils.getTenantAwareUsername(fullQualifiedUsername),
+                            new String[]{failedAttemptsClaim}, null);
+            String failedOtpAttempts = claimValues.get(failedAttemptsClaim);
+            int maxFailedAttemptsOnAccountLock =
+                    Arrays.stream(AuthenticatorUtils.getAccountLockConnectorConfigs(tenantDomain))
+                            .filter(config -> FAILED_LOGIN_ATTEMPTS_PROPERTY.equals(config.getName())).findFirst()
+                            .map(config -> Integer.parseInt(config.getValue())).orElseThrow(
+                                    () -> new AuthenticationFailedException(
+                                            "No configuration found for " + FAILED_LOGIN_ATTEMPTS_PROPERTY));
+            int parsedFailedAttempts = (failedOtpAttempts != null) ? Integer.parseInt(failedOtpAttempts) : 0;
+            return maxFailedAttemptsOnAccountLock - parsedFailedAttempts;
+        } catch (UserStoreException e) {
+            String errorMessage = String.format("Failed to get remaining attempts count for user : %s.",
+                    getAuthenticatedUserFromContext(context));
+            throw new AuthenticationFailedException(errorMessage, e);
+        }
     }
 
     /**
