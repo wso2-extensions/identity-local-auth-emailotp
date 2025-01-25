@@ -94,6 +94,7 @@ import static org.wso2.carbon.identity.event.handler.notification.NotificationCo
 import static org.wso2.carbon.identity.handler.event.account.lock.constants.AccountConstants.FAILED_LOGIN_ATTEMPTS_PROPERTY;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.CODE;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.DISPLAY_CODE;
+import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.EMAIL_OTP_AUTHENTICATOR_NAME;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.LogConstants.ActionIDs.INITIATE_EMAIL_OTP_REQUEST;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.LogConstants.ActionIDs.PROCESS_AUTHENTICATION_RESPONSE;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.LogConstants.EMAIL_OTP_SERVICE;
@@ -481,10 +482,16 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
     private AuthenticatorConstants.AuthenticationScenarios resolveScenario(HttpServletRequest request,
                                                                            AuthenticationContext context) {
 
+        // If the current authenticator is not EMAIL OTP, then set the flow to not retrying which could have been
+        // set from other authenticators and not cleared.
+        if (!EMAIL_OTP_AUTHENTICATOR_NAME.equals(context.getCurrentAuthenticator())) {
+            context.setRetrying(false);
+        }
+
         if (context.isLogoutRequest()) {
             return AuthenticatorConstants.AuthenticationScenarios.LOGOUT;
         } else if (!context.isRetrying() && StringUtils.isBlank(request.getParameter(CODE)) &&
-                StringUtils.isBlank(request.getParameter(AuthenticatorConstants.RESEND))) {
+                !Boolean.parseBoolean(request.getParameter(AuthenticatorConstants.RESEND))) {
             return AuthenticatorConstants.AuthenticationScenarios.INITIAL_OTP;
         } else if (context.isRetrying() &&
                 StringUtils.isNotBlank(request.getParameter(AuthenticatorConstants.RESEND)) &&
