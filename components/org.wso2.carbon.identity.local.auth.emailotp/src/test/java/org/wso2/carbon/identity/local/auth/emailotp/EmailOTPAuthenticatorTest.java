@@ -23,6 +23,7 @@ import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import org.wso2.carbon.identity.application.authentication.framework.AuthenticatorFlowStatus;
 import org.wso2.carbon.identity.application.authentication.framework.config.ConfigurationFacade;
@@ -33,6 +34,7 @@ import org.wso2.carbon.identity.application.authentication.framework.config.mode
 import org.wso2.carbon.identity.application.authentication.framework.config.model.StepConfig;
 import org.wso2.carbon.identity.application.authentication.framework.context.AuthenticationContext;
 import org.wso2.carbon.identity.application.authentication.framework.exception.AuthenticationFailedException;
+import org.wso2.carbon.identity.application.authentication.framework.exception.LogoutFailedException;
 import org.wso2.carbon.identity.application.authentication.framework.internal.FrameworkServiceDataHolder;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedUser;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatorData;
@@ -146,6 +148,37 @@ public class EmailOTPAuthenticatorTest {
         when(IdentityTenantUtil.getTenantId(TENANT_DOMAIN)).thenReturn(TENANT_ID);
         when(frameworkServiceDataHolder.getMultiAttributeLoginService()).thenReturn(multiAttributeLoginService);
         when(multiAttributeLoginService.isEnabled(TENANT_DOMAIN)).thenReturn(false);
+    }
+
+    @DataProvider(name = "authenticatorProvider")
+    public Object[][] provideAuthenticators() {
+        return new Object[][]{
+                {"sms-otp-authenticator"},
+                {"email-otp-authenticator"}
+        };
+    }
+
+    @Test(description = "Test isRetrying in OTP Authenticators",
+            dataProvider = "authenticatorProvider",
+            expectedExceptions = NullPointerException.class)
+    public void testIsRetryingInOTPAuthenticators(String currentAuthenticator)
+            throws AuthenticationFailedException, LogoutFailedException {
+
+        Map<String, String> parameters = new HashMap<>();
+        parameters.put("BlockedUserStoreDomains", "");
+
+        AuthenticatorConfig authenticatorConfig = new AuthenticatorConfig();
+        authenticatorConfig.setParameterMap(parameters);
+        setStepConfigWithEmailOTPAuthenticator(authenticatorConfig, context);
+
+        when(httpServletRequest.getParameter(AuthenticatorConstants.RESEND)).thenReturn(String.valueOf(true));
+        when(ConfigurationFacade.getInstance()).thenReturn(configurationFacade);
+        when(configurationFacade.getAuthenticationEndpointURL()).thenReturn(DUMMY_LOGIN_PAGE_URL);
+
+        context.setCurrentAuthenticator(currentAuthenticator);
+
+        emailOTPAuthenticator.process(httpServletRequest, httpServletResponse, context);
+        Assert.assertFalse(context.isRetrying());
     }
 
     @Test(description = "Test case for canHandle() method false case.")
