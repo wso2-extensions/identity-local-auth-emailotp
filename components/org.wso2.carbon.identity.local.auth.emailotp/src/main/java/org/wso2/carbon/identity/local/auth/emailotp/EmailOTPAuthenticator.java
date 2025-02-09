@@ -1169,9 +1169,13 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
     private String resolveEmailAddressAttribute(AuthenticatedUser user, String tenantDomain,
                                                 AuthenticationContext context) throws AuthenticationFailedException {
 
+        // Prioritizing the authenticator's dialect first, then considering the claim mapping defined in the IdP.
         String dialect = getFederatedAuthenticatorDialect(context);
         if (AuthenticatorConstants.OIDC_DIALECT_URI.equals(dialect)) {
             return AuthenticatorConstants.EMAIL_ATTRIBUTE_KEY;
+        }
+        if (AuthenticatorConstants.WSO2_CLAIM_DIALECT.equals(dialect)) {
+            return AuthenticatorConstants.Claims.EMAIL_CLAIM;
         }
         // If the dialect is not OIDC we need to check claim mappings for the email claim mapped attribute.
         String idpName = user.getFederatedIdPName();
