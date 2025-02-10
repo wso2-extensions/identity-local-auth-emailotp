@@ -84,6 +84,7 @@ public class AuthenticatorConstants {
     public static final String EMAIL_OTP_PAGE = "authenticationendpoint/email_otp.do";
 
     public static final String OIDC_DIALECT_URI = "http://wso2.org/oidc/claim";
+    public static final String WSO2_CLAIM_DIALECT = "http://wso2.org/claims";
     public static final String EMAIL_ATTRIBUTE_KEY = "email";
     public static final String EMAIL_OTP_EMAIL_NOT_FOUND_ERROR_CODE = "email.not.found";
     public static final String AUTHENTICATORS = "authenticators=";
