@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2023, WSO2 LLC. (https://www.wso2.com).
+ * Copyright (c) 2023-2025, WSO2 LLC. (https://www.wso2.com).
  *
  * WSO2 LLC. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
@@ -53,6 +53,7 @@ import org.wso2.carbon.identity.central.log.mgt.utils.LogConstants;
 import org.wso2.carbon.identity.central.log.mgt.utils.LoggerUtils;
 import org.wso2.carbon.identity.claim.metadata.mgt.exception.ClaimMetadataException;
 import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
+import org.wso2.carbon.identity.core.util.IdentityUtil;
 import org.wso2.carbon.identity.event.IdentityEventConstants;
 import org.wso2.carbon.identity.event.IdentityEventException;
 import org.wso2.carbon.identity.event.event.Event;
@@ -65,6 +66,7 @@ import org.wso2.carbon.idp.mgt.IdentityProviderManagementException;
 import org.wso2.carbon.user.api.UserRealm;
 import org.wso2.carbon.user.api.UserStoreException;
 import org.wso2.carbon.user.api.UserStoreManager;
+import org.wso2.carbon.user.core.UserCoreConstants;
 import org.wso2.carbon.user.core.common.AbstractUserStoreManager;
 import org.wso2.carbon.user.core.common.User;
 import org.wso2.carbon.user.core.util.UserCoreUtil;
@@ -949,6 +951,16 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             for (Map.Entry<String, Object> metaProperty : metaProperties.entrySet()) {
                 if (StringUtils.isNotBlank(metaProperty.getKey()) && metaProperty.getValue() != null) {
                     properties.put(metaProperty.getKey(), metaProperty.getValue());
+                }
+            }
+        }
+        // For JIT provisioned federated users add the locale from the mapped user to event properties.
+        if (context != null && user.isFederatedUser()) {
+            String associatedUsername = getMappedLocalUsername(user, context);
+            if (StringUtils.isNotBlank(associatedUsername)) {
+                String associatedUserLocale = getAssociatedUserLocale(user, context, associatedUsername);
+                if (StringUtils.isNotBlank(associatedUserLocale)) {
+                    properties.put(AuthenticatorConstants.LOCAL_CLAIM_VALUE, associatedUserLocale);
                 }
             }
         }
@@ -1886,5 +1898,40 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
     public boolean isAPIBasedAuthenticationSupported() {
 
         return true;
+    }
+
+    /**
+     * Retrieves the Locale claim of the provisioned associated user.
+     *
+     * @param authenticatedUser  Authenticated user.
+     * @param context            Authentication context.
+     * @param associatedUsername Local mapped username.
+     * @return The resolved Locale claim or null if not found.
+     * @throws AuthenticationFailedException If an error occurs while retrieving the claim.
+     */
+    private String getAssociatedUserLocale(AuthenticatedUser authenticatedUser, AuthenticationContext context,
+                                           String associatedUsername)
+            throws AuthenticationFailedException {
+
+        String tenantDomain = authenticatedUser.getTenantDomain();
+        String userStoreDomainName = getFederatedUserstoreDomain(authenticatedUser, tenantDomain, context);
+
+        if (StringUtils.isNotEmpty(userStoreDomainName)) {
+            try {
+                UserRealm userRealm = getTenantUserRealm(tenantDomain, context);
+                UserStoreManager userStoreManager = userRealm.getUserStoreManager();
+                Map<String, String> claimValues = userStoreManager.getUserClaimValues(
+                        IdentityUtil.addDomainToName(associatedUsername, userStoreDomainName),
+                        new String[]{AuthenticatorConstants.Claims.LOCALE_CLAIM}, UserCoreConstants.DEFAULT_PROFILE);
+                if (claimValues != null) {
+                    return claimValues.get(AuthenticatorConstants.Claims.LOCALE_CLAIM);
+                }
+            } catch (UserStoreException e) {
+                throw new AuthenticationFailedException(
+                        String.format("Failed to read associated user claims for provisioned user: %s.",
+                                authenticatedUser), e);
+            }
+        }
+        return null;
     }
 }

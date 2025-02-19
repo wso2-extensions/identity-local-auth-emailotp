@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2023, WSO2 LLC. (https://www.wso2.com).
+ * Copyright (c) 2023-2025, WSO2 LLC. (https://www.wso2.com).
  *
  * WSO2 LLC. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
@@ -17,6 +17,8 @@
  */
 
 package org.wso2.carbon.identity.local.auth.emailotp.constant;
+
+import org.wso2.carbon.identity.core.util.IdentityUtil;
 
 /**
  * Constants class.
@@ -51,6 +53,7 @@ public class AuthenticatorConstants {
     public static final String OTP_TOKEN = "otpToken";
     public static final String EMAIL_OTP_TEMPLATE_NAME = "EmailOTP";
     public static final String RESEND_EMAIL_OTP_TEMPLATE_NAME = "ResendEmailOTP";
+    public static final String LOCAL_CLAIM_VALUE = "locale";
 
     public static final String CODE_MISMATCH = "codeMismatch";
     public static final String OTP_EXPIRED = "isOTPExpired";
@@ -119,6 +122,7 @@ public class AuthenticatorConstants {
         public static final String OTP_BACKUP_CODES_CLAIM = "http://wso2.org/claims/identity/otpbackupcodes";
         public static final String EMAIL_OTP_FAILED_ATTEMPTS_CLAIM =
                 "http://wso2.org/claims/identity/failedEmailOtpAttempts";
+        public static final String LOCALE_CLAIM = IdentityUtil.getClaimUriLocale();
     }
 
     /**
