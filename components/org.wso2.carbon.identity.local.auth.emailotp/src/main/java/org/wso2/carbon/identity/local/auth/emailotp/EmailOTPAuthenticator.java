@@ -21,7 +21,6 @@ package org.wso2.carbon.identity.local.auth.emailotp;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
-import org.apache.commons.lang.math.NumberUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.wso2.carbon.extension.identity.helper.FederatedAuthenticatorUtil;
@@ -74,7 +73,6 @@ import org.wso2.carbon.utils.DiagnosticLog;
 import org.wso2.carbon.utils.multitenancy.MultitenantUtils;
 
 import java.io.IOException;
-import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -836,13 +834,19 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
                                          AuthenticationContext context)
             throws AuthenticationFailedException {
 
-        String emailAddressRegex = getEmailMaskingPattern(tenantDomain, context);
-        if (StringUtils.isBlank(emailAddressRegex)) {
-            log.debug(String.format("Email address masking regex is not set in tenant: %s. Therefore showing the " +
-                    "complete email address for user: %s", tenantDomain, username));
-            return email;
+        try {
+            String emailAddressRegex = CommonUtils.getEmailMaskingPattern(tenantDomain);
+            if (StringUtils.isBlank(emailAddressRegex)) {
+                log.debug(String.format("Email address masking regex is not set in tenant: %s. Therefore showing the " +
+                        "complete email address for user: %s", tenantDomain, username));
+                return email;
+            }
+            return email.replaceAll(emailAddressRegex, AuthenticatorConstants.EMAIL_ADDRESS_MASKING_CHARACTER);
+        } catch (ClaimMetadataException e) {
+            throw handleAuthErrorScenario(
+                    AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_EMAIL_MASKING_REGEX, e, context,
+                    tenantDomain);
         }
-        return email.replaceAll(emailAddressRegex, AuthenticatorConstants.EMAIL_ADDRESS_MASKING_CHARACTER);
     }
 
     /**
@@ -1436,40 +1440,6 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         return provisionedUserstore;
     }
 
-    private int getOTPLength(String tenantDomain, AuthenticationContext context) throws AuthenticationFailedException {
-
-        try {
-            int otpLength = AuthenticatorConstants.DEFAULT_OTP_LENGTH;
-            String configuredOTPLength = AuthenticatorUtils.getEmailAuthenticatorConfig(
-                    AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_LENGTH, tenantDomain);
-            if (NumberUtils.isNumber(configuredOTPLength)) {
-                otpLength = Integer.parseInt(configuredOTPLength);
-            }
-            return otpLength;
-        } catch (EmailOtpAuthenticatorServerException exception) {
-            throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_CONFIG,
-                    context);
-        }
-    }
-
-    private String getOTPCharset(String tenantDomain, AuthenticationContext context)
-            throws AuthenticationFailedException {
-
-        try {
-            boolean useAlphanumericChars = Boolean.parseBoolean(
-                    AuthenticatorUtils.getEmailAuthenticatorConfig(
-                            AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_USE_ALPHANUMERIC_CHARS, tenantDomain));
-            if (useAlphanumericChars) {
-                return AuthenticatorConstants.EMAIL_OTP_UPPER_CASE_ALPHABET_CHAR_SET +
-                        AuthenticatorConstants.EMAIL_OTP_NUMERIC_CHAR_SET;
-            }
-            return AuthenticatorConstants.EMAIL_OTP_NUMERIC_CHAR_SET;
-        } catch (EmailOtpAuthenticatorServerException exception) {
-            throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_CONFIG,
-                    context);
-        }
-    }
-
     private boolean isBackupCodeEnabled(String tenantDomain , AuthenticationContext context)
             throws AuthenticationFailedException {
 
@@ -1483,50 +1453,11 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         }
     }
 
-    private String getEmailMaskingPattern(String tenantDomain, AuthenticationContext context)
-            throws AuthenticationFailedException {
-
-        try {
-            String regex = AuthenticatorDataHolder.getClaimMetadataManagementService().
-                    getMaskingRegexForLocalClaim(AuthenticatorConstants.Claims.EMAIL_CLAIM, tenantDomain);
-            if (StringUtils.isNotBlank(regex)) {
-                return regex;
-            }
-            return AuthenticatorConstants.DEFAULT_EMAIL_MASKING_REGEX;
-        } catch (ClaimMetadataException e) {
-            throw handleAuthErrorScenario(
-                    AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_EMAIL_MASKING_REGEX, e, context,
-                    tenantDomain);
-        }
-    }
-
     private long getOtpValidityPeriod(String tenantDomain, AuthenticationContext context)
             throws AuthenticationFailedException {
 
         try {
-            String value = AuthenticatorUtils.getEmailAuthenticatorConfig(
-                    AuthenticatorConstants.ConnectorConfig.OTP_EXPIRY_TIME, tenantDomain);
-            if (StringUtils.isBlank(value)) {
-                return AuthenticatorConstants.DEFAULT_EMAIL_OTP_VALIDITY_IN_MILLIS;
-            }
-            long validityTime;
-            try {
-                validityTime = Long.parseLong(value);
-            } catch (NumberFormatException e) {
-                log.error(String.format("Email OTP validity period value: %s configured in tenant : %s is not a " +
-                                "number. Therefore, default validity period: %s (milli-seconds) will be used", value,
-                        tenantDomain, AuthenticatorConstants.DEFAULT_EMAIL_OTP_VALIDITY_IN_MILLIS));
-                return AuthenticatorConstants.DEFAULT_EMAIL_OTP_VALIDITY_IN_MILLIS;
-            }
-            // We don't need to send tokens with infinite validity.
-            if (validityTime < 0) {
-                log.error(String.format("Email OTP validity period value: %s configured in tenant : %s cannot be a " +
-                        "negative number. Therefore, default validity period: %s (milli-seconds) will " +
-                        "be used", value, tenantDomain, AuthenticatorConstants.DEFAULT_EMAIL_OTP_VALIDITY_IN_MILLIS));
-                return AuthenticatorConstants.DEFAULT_EMAIL_OTP_VALIDITY_IN_MILLIS;
-            }
-            // Converting to milliseconds since the config is provided in seconds.
-            return validityTime * 1000;
+            return CommonUtils.getOtpValidityPeriod(tenantDomain);
         } catch (EmailOtpAuthenticatorServerException exception) {
             throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_CONFIG,
                     exception, context);
@@ -1601,16 +1532,12 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
     private String generateOTP(String tenantDomain, AuthenticationContext context)
             throws AuthenticationFailedException {
 
-        String charSet = getOTPCharset(tenantDomain, context);
-        int otpLength = getOTPLength(tenantDomain, context);
-
-        char[] chars = charSet.toCharArray();
-        SecureRandom rnd = new SecureRandom();
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < otpLength; i++) {
-            sb.append(chars[rnd.nextInt(chars.length)]);
+        try {
+            return CommonUtils.generateOTP(tenantDomain);
+        } catch (EmailOtpAuthenticatorServerException e) {
+            throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_CONFIG,
+                    context);
         }
-        return sb.toString();
     }
 
     /**

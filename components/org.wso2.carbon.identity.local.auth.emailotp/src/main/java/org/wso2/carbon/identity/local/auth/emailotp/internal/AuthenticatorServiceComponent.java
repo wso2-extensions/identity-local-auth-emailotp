@@ -35,7 +35,9 @@ import org.wso2.carbon.identity.governance.IdentityGovernanceService;
 import org.wso2.carbon.identity.governance.common.IdentityConnectorConfig;
 import org.wso2.carbon.identity.handler.event.account.lock.service.AccountLockService;
 import org.wso2.carbon.identity.local.auth.emailotp.EmailOTPAuthenticator;
+import org.wso2.carbon.identity.local.auth.emailotp.EmailOTPExecutor;
 import org.wso2.carbon.identity.local.auth.emailotp.connector.EmailOTPAuthenticatorConfigImpl;
+import org.wso2.carbon.identity.user.registration.engine.graph.Executor;
 import org.wso2.carbon.idp.mgt.IdpManager;
 import org.wso2.carbon.user.core.service.RealmService;
 
@@ -59,6 +61,7 @@ public class AuthenticatorServiceComponent {
                     new EmailOTPAuthenticatorConfigImpl(), null);
             bundleContext.registerService(ApplicationAuthenticator.class.getName(),
                     new EmailOTPAuthenticator(), null);
+            bundleContext.registerService(Executor.class.getName(), new EmailOTPExecutor(), null);
             if (log.isDebugEnabled()) {
                 log.debug("Email OTP authenticator is activated");
             }
