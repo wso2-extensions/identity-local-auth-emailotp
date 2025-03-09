@@ -77,11 +77,15 @@ import java.io.IOException;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -95,6 +99,7 @@ import static org.wso2.carbon.identity.event.handler.notification.NotificationCo
 import static org.wso2.carbon.identity.event.handler.notification.NotificationConstants.EmailNotification.EMAIL_TEMPLATE_TYPE;
 import static org.wso2.carbon.identity.handler.event.account.lock.constants.AccountConstants.FAILED_LOGIN_ATTEMPTS_PROPERTY;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.CODE;
+import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.CODE_LOWERCASE;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.DISPLAY_CODE;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.EMAIL_OTP_AUTHENTICATOR_NAME;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.LogConstants.ActionIDs.INITIATE_EMAIL_OTP_REQUEST;
@@ -154,9 +159,10 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         if (log.isDebugEnabled()) {
             log.debug("Inside EmailOTPAuthenticator canHandle method");
         }
+        String codeParam = getCurrentCodeParam(request);
         boolean canHandle = ((StringUtils.isNotBlank(request.getParameter(AuthenticatorConstants.RESEND))
-                && StringUtils.isBlank(request.getParameter(CODE)))
-                || StringUtils.isNotBlank(request.getParameter(CODE))
+                && StringUtils.isBlank(request.getParameter(codeParam)))
+                || StringUtils.isNotBlank(request.getParameter(codeParam))
                 || StringUtils.isNotBlank(request.getParameter(AuthenticatorConstants.USER_NAME)));
         if (canHandle && LoggerUtils.isDiagnosticLogsEnabled()) {
             DiagnosticLog.DiagnosticLogBuilder diagnosticLogBuilder = new DiagnosticLog.DiagnosticLogBuilder(
@@ -341,7 +347,8 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         boolean isInitialFederationAttempt = StringUtils.isBlank(mappedLocalUsername);
         AuthenticatedUser authenticatingUser = resolveAuthenticatingUser(authenticatedUserFromContext,
                 mappedLocalUsername, applicationTenantDomain, isInitialFederationAttempt, context);
-        if (StringUtils.isBlank(request.getParameter(CODE))) {
+        String codeParam = getCurrentCodeParam(request);
+        if (StringUtils.isBlank(request.getParameter(codeParam))) {
             throw handleInvalidCredentialsScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_EMPTY_OTP_CODE,
                     authenticatedUserFromContext.getUserName());
         }
@@ -350,7 +357,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
                     authenticatedUserFromContext.getUserName());
         }
         boolean isSuccessfulAttempt =
-                isSuccessfulAuthAttempt(request.getParameter(CODE), applicationTenantDomain,
+                isSuccessfulAuthAttempt(request.getParameter(codeParam), applicationTenantDomain,
                         authenticatingUser, context);
         if (isSuccessfulAttempt) {
             if (!isInitialFederationAttempt && AuthenticatorUtils.isAccountLocked(authenticatingUser)) {
@@ -492,7 +499,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
 
         if (context.isLogoutRequest()) {
             return AuthenticatorConstants.AuthenticationScenarios.LOGOUT;
-        } else if (!context.isRetrying() && StringUtils.isBlank(request.getParameter(CODE)) &&
+        } else if (!context.isRetrying() && StringUtils.isBlank(request.getParameter(getCurrentCodeParam(request))) &&
                 !Boolean.parseBoolean(request.getParameter(AuthenticatorConstants.RESEND))) {
             return AuthenticatorConstants.AuthenticationScenarios.INITIAL_OTP;
         } else if (context.isRetrying() &&
@@ -861,19 +868,20 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             throws AuthenticationFailedException {
 
         String tenantDomain = context.getTenantDomain();
+        String codeParam = getCurrentCodeParam(request);
 
         Map<String, Object> eventProperties = new HashMap<>();
         eventProperties.put(IdentityEventConstants.EventProperty.CORRELATION_ID, context.getCallerSessionKey());
         eventProperties.put(IdentityEventConstants.EventProperty.APPLICATION_NAME, context.getServiceProviderName());
         eventProperties.put(IdentityEventConstants.EventProperty.USER_INPUT_OTP, request.getParameter(
-                CODE));
+                codeParam));
         eventProperties.put(IdentityEventConstants.EventProperty.OTP_USED_TIME, System.currentTimeMillis());
 
         // Add otp status to the event properties.
         if (isAuthenticationPassed) {
             eventProperties.put(IdentityEventConstants.EventProperty.OTP_STATUS, AuthenticatorConstants.STATUS_SUCCESS);
             eventProperties.put(IdentityEventConstants.EventProperty.GENERATED_OTP, request.getParameter(
-                    CODE));
+                    codeParam));
         } else {
             if (isExpired) {
                 eventProperties.put(IdentityEventConstants.EventProperty.OTP_STATUS,
@@ -1887,6 +1895,26 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
                     getAuthenticatedUserFromContext(context));
             throw new AuthenticationFailedException(errorMessage, e);
         }
+    }
+
+    /**
+     * Accept both "OTPcode" and "OTPCode" as valid parameters
+     * by checking for the presence of CODE_LOWERCASE when CODE is absent.
+     *
+     * @param request The HTTP servlet request containing the parameters.
+     * @return {@code CODE_LOWERCASE} if present and {@code CODE} is absent, otherwise {@code CODE}.
+     */
+    private String getCurrentCodeParam(HttpServletRequest request) {
+
+        Enumeration<String> parameterNames = request.getParameterNames();
+
+        // If parameterNames is null, return CODE to preserve the existing behavior where CODE is the default.
+        if (parameterNames == null) {
+            return CODE;
+        }
+
+        Set<String> requestParams = new HashSet<>(Collections.list(request.getParameterNames()));
+        return requestParams.contains(CODE_LOWERCASE) && !requestParams.contains(CODE) ? CODE_LOWERCASE : CODE;
     }
 
     /**
