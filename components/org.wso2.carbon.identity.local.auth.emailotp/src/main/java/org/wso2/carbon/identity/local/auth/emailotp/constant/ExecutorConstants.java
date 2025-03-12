@@ -29,6 +29,7 @@ public class ExecutorConstants {
 
     public static final String EMAIL_OTP_EXECUTOR_NAME = "EmailOTPExecutor";
     public static final String OTP = "otp";
+    public static final String OTP_LENGTH = "otpLength";
     public static final String OTP_GENERATED_TIME = "tokenGeneratedTime";
     public static final String OTP_EXPIRED = "isOTPExpired";
     public static final String EMAIL_OTP_RETRY_COUNT = "emailOTPRetryCount";

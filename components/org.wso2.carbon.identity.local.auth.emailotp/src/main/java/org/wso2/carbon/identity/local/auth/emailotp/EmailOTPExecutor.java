@@ -50,6 +50,7 @@ import static org.wso2.carbon.identity.local.auth.emailotp.constant.Authenticato
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.LogConstants.EMAIL_OTP_SERVICE;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.RESEND;
 import static org.wso2.carbon.identity.local.auth.emailotp.util.ExecutorUtils.triggerEvent;
+import static org.wso2.carbon.identity.user.registration.engine.Constants.ExecutorStatus.STATUS_USER_ERROR;
 import static org.wso2.carbon.identity.user.registration.engine.Constants.ExecutorStatus.STATUS_USER_INPUT_REQUIRED;
 
 /**
@@ -69,7 +70,11 @@ public class EmailOTPExecutor implements Executor {
         ExecutorResponse executorResponse = new ExecutorResponse();
         Map<String, Object> contextProperties = new HashMap<>();
         executorResponse.setContextProperty(contextProperties);
+
         handleRetryCount(registrationContext, executorResponse);
+        if (STATUS_USER_ERROR.equals(executorResponse.getResult())) {
+            return executorResponse;
+        }
 
         // Null OTP indicates the initial node execution. Therefore, OTP should be requested from the user.
         // Further, the executor should trigger the email sending logic.
@@ -104,10 +109,13 @@ public class EmailOTPExecutor implements Executor {
             int retryCount = (int) registrationContext.getProperty(ExecutorConstants.EMAIL_OTP_RETRY_COUNT);
             // TODO: Configurable max retry count.
             if (retryCount >= 3) {
-                executorResponse.setResult(Constants.ExecutorStatus.STATUS_ERROR);
+                executorResponse.setResult(Constants.ExecutorStatus.STATUS_USER_ERROR);
+                executorResponse.setErrorMessage("Maximum retry count exceeded.");
             }
             executorResponse.getContextProperties().put(ExecutorConstants.EMAIL_OTP_RETRY_COUNT, retryCount + 1);
+            return;
         }
+        executorResponse.getContextProperties().put(ExecutorConstants.EMAIL_OTP_RETRY_COUNT, 1);
     }
 
     private void initiateEmailOTPRegistration(RegistrationContext context, ExecutorResponse executorResponse) {
@@ -116,7 +124,7 @@ public class EmailOTPExecutor implements Executor {
         List<String> requiredData = new ArrayList<>();
         requiredData.add(ExecutorConstants.OTP);
         sendEmailOTP(AuthenticatorConstants.AuthenticationScenarios.INITIAL_OTP, context,
-                executorResponse.getContextProperties());
+                executorResponse);
         executorResponse.setRequiredData(requiredData);
     }
 
@@ -196,9 +204,10 @@ public class EmailOTPExecutor implements Executor {
     }
 
     private void sendEmailOTP(AuthenticatorConstants.AuthenticationScenarios scenario, RegistrationContext context,
-                              Map<String, Object> contextProperties) {
+                              ExecutorResponse executorResponse) {
 
         try {
+            Map<String, Object> contextProperties = executorResponse.getContextProperties();
             String tenantDomain = context.getTenantDomain();
             String email = String.valueOf(context.getUserInputData().get(EMAIL_ADDRESS_CLAIM));
             String username = String.valueOf(context.getUserInputData().get(USERNAME_CLAIM));
@@ -209,6 +218,11 @@ public class EmailOTPExecutor implements Executor {
             contextProperties.put(ExecutorConstants.OTP_GENERATED_TIME, System.currentTimeMillis());
             contextProperties.put(ExecutorConstants.OTP_EXPIRED, false);
             publishPostEmailOTPGeneratedEvent(context);
+
+            int otpLength = CommonUtils.getOTPLength(tenantDomain);
+            Map<String, String> additionalInfo = new HashMap<>();
+            additionalInfo.put(ExecutorConstants.OTP_LENGTH, String.valueOf(otpLength));
+            executorResponse.setAdditionalInfo(additionalInfo);
 
             Map<String, Object> metaProperties = new HashMap<>();
             metaProperties.put(CODE, otp);
@@ -245,7 +259,7 @@ public class EmailOTPExecutor implements Executor {
 
         if (executorResponse.getResult().equals(Constants.ExecutorStatus.STATUS_RETRY)) {
             sendEmailOTP(AuthenticatorConstants.AuthenticationScenarios.RESEND_OTP, context,
-                    executorResponse.getContextProperties());
+                    executorResponse);
             executorResponse.getContextProperties().put(AuthenticatorConstants.RESEND, true);
             executorResponse.setErrorMessage("Invalid OTP. Please try again.");
         }
