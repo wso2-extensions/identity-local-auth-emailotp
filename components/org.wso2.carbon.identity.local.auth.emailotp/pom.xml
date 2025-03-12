@@ -97,6 +97,10 @@
             <artifactId>org.wso2.carbon.identity.captcha</artifactId>
         </dependency>
         <dependency>
+            <groupId>org.wso2.carbon.identity.framework</groupId>
+            <artifactId>org.wso2.carbon.identity.user.registration.engine</artifactId>
+        </dependency>
+        <dependency>
             <groupId>com.github.spotbugs</groupId>
             <artifactId>spotbugs-annotations</artifactId>
         </dependency>
@@ -151,6 +155,12 @@
                             org.wso2.carbon.identity.captcha.*; version="${identity.governance.imp.pkg.version.range}",
                             javax.servlet.*; version="${imp.pkg.version.javax.servlet}",
                             org.owasp.encoder; version="${encoder.wso2.import.version.range}",
+                            org.wso2.carbon.identity.user.registration.engine.exception;
+                            version="${carbon.identity.framework.imp.pkg.version.range}",
+                            org.wso2.carbon.identity.user.registration.engine.graph;
+                            version="${carbon.identity.framework.imp.pkg.version.range}",
+                            org.wso2.carbon.identity.user.registration.engine.model;
+                            version="${carbon.identity.framework.imp.pkg.version.range}",
                         </Import-Package>
                     </instructions>
                 </configuration>
