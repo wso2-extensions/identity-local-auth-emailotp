@@ -62,7 +62,7 @@ public class CommonUtils {
         return sb.toString();
     }
 
-    private static int getOTPLength(String tenantDomain) throws EmailOtpAuthenticatorServerException {
+    protected static int getOTPLength(String tenantDomain) throws EmailOtpAuthenticatorServerException {
 
         int otpLength = AuthenticatorConstants.DEFAULT_OTP_LENGTH;
         String configuredOTPLength = AuthenticatorUtils.getEmailAuthenticatorConfig(
