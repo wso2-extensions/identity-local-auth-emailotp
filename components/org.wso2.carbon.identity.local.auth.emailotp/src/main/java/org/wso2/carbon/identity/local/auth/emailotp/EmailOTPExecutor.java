@@ -156,6 +156,9 @@ public class EmailOTPExecutor implements Executor {
                     executorResponse.getContextProperties().put(ExecutorConstants.OTP_GENERATED_TIME,
                             StringUtils.EMPTY);
                     executorResponse.getContextProperties().put(ExecutorConstants.OTP, StringUtils.EMPTY);
+                    Map<String, Object> updatedClaims = new HashMap<>();
+                    updatedClaims.put(ExecutorConstants.EMAIL_VERIFIED_CLAIM_URI, true);
+                    executorResponse.setUpdatedUserClaims(updatedClaims);
                 }
             } else {
                 executorResponse.setResult(Constants.ExecutorStatus.STATUS_RETRY);
