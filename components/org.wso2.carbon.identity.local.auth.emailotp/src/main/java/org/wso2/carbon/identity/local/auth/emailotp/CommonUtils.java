@@ -109,7 +109,7 @@ public class CommonUtils {
      * @return OTP validity period.
      * @throws EmailOtpAuthenticatorServerException Email OTP Authenticator Server Exception.
      */
-    protected static long getOtpValidityPeriod(String tenantDomain)
+    public static long getOtpValidityPeriod(String tenantDomain)
             throws EmailOtpAuthenticatorServerException {
 
         String value = AuthenticatorUtils.getEmailAuthenticatorConfig(

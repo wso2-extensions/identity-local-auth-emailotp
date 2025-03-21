@@ -118,7 +118,8 @@ public class EmailOTPExecutor implements Executor {
         executorResponse.getContextProperties().put(ExecutorConstants.EMAIL_OTP_RETRY_COUNT, 1);
     }
 
-    private void initiateEmailOTPRegistration(RegistrationContext context, ExecutorResponse executorResponse) {
+    private void initiateEmailOTPRegistration(RegistrationContext context, ExecutorResponse executorResponse)
+            throws RegistrationEngineServerException {
 
         executorResponse.setResult(STATUS_USER_INPUT_REQUIRED);
         List<String> requiredData = new ArrayList<>();
@@ -180,8 +181,8 @@ public class EmailOTPExecutor implements Executor {
                         .resultStatus(DiagnosticLog.ResultStatus.FAILED);
                 LoggerUtils.triggerDiagnosticLogEvent(diagnosticLogBuilder);
             }
-            throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_CONFIG, e,
-                    registrationContext);
+            throw handleAuthErrorScenario(Constants.ErrorMessages.ERROR_CODE_EXECUTOR_FAILURE, e,
+                    registrationContext, "Error occurred while processing email otp authentication response.");
         }
     }
 
@@ -195,8 +196,8 @@ public class EmailOTPExecutor implements Executor {
             throws RegistrationEngineException, EmailOtpAuthenticatorServerException {
 
         if (context.getProperty(AuthenticatorConstants.OTP_GENERATED_TIME) == null) {
-            throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_EMPTY_GENERATED_TIME, null,
-                    context);
+            throw handleAuthErrorScenario(Constants.ErrorMessages.ERROR_CODE_EXECUTOR_FAILURE, null,
+                    context, "OTP generated time not found in context.");
         }
         long generatedTime = (long) context.getProperty(AuthenticatorConstants.OTP_GENERATED_TIME);
         long expireTime = CommonUtils.getOtpValidityPeriod(tenantDomain);
@@ -204,7 +205,7 @@ public class EmailOTPExecutor implements Executor {
     }
 
     private void sendEmailOTP(AuthenticatorConstants.AuthenticationScenarios scenario, RegistrationContext context,
-                              ExecutorResponse executorResponse) {
+                              ExecutorResponse executorResponse) throws RegistrationEngineServerException {
 
         try {
             Map<String, Object> contextProperties = executorResponse.getContextProperties();
@@ -251,11 +252,13 @@ public class EmailOTPExecutor implements Executor {
                         .inputParam("scenario", scenario.name());
                 LoggerUtils.triggerDiagnosticLogEvent(diagnosticLogBuilder);
             }
-
+            throw handleAuthErrorScenario(Constants.ErrorMessages.ERROR_CODE_EXECUTOR_FAILURE, e,
+                    context, "Error occurred while sending email OTP.");
         }
     }
 
-    private void handleRetry(RegistrationContext context, ExecutorResponse executorResponse) {
+    private void handleRetry(RegistrationContext context, ExecutorResponse executorResponse)
+            throws RegistrationEngineServerException {
 
         if (executorResponse.getResult().equals(Constants.ExecutorStatus.STATUS_RETRY)) {
             sendEmailOTP(AuthenticatorConstants.AuthenticationScenarios.RESEND_OTP, context,
@@ -304,7 +307,7 @@ public class EmailOTPExecutor implements Executor {
      * @return RegistrationEngineServerException.
      */
     @SuppressFBWarnings("FORMAT_STRING_MANIPULATION")
-    private RegistrationEngineServerException handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages error,
+    private RegistrationEngineServerException handleAuthErrorScenario(Constants.ErrorMessages error,
                                                                       Throwable throwable, RegistrationContext context,
                                                                       Object... data) {
 
