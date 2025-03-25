@@ -261,8 +261,14 @@ public class EmailOTPExecutor implements Executor {
             throws RegistrationEngineServerException {
 
         if (executorResponse.getResult().equals(Constants.ExecutorStatus.STATUS_RETRY)) {
-            sendEmailOTP(AuthenticatorConstants.AuthenticationScenarios.RESEND_OTP, context,
-                    executorResponse);
+            Object isOTPExpiredObj = context.getProperty(ExecutorConstants.OTP_EXPIRED);
+            if (isOTPExpiredObj != null && (boolean) isOTPExpiredObj) {
+                sendEmailOTP(AuthenticatorConstants.AuthenticationScenarios.RESEND_OTP, context,
+                        executorResponse);
+                executorResponse.setResult(Constants.ExecutorStatus.STATUS_RETRY);
+                executorResponse.setErrorMessage("OTP expired. Please try again.");
+                return;
+            }
             executorResponse.getContextProperties().put(AuthenticatorConstants.RESEND, true);
             executorResponse.setErrorMessage("Invalid OTP. Please try again.");
         }
