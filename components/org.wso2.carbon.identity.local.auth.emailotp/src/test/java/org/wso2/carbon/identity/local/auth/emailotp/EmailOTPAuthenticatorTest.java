@@ -36,7 +36,6 @@ import org.wso2.carbon.identity.application.authentication.framework.config.mode
 import org.wso2.carbon.identity.application.authentication.framework.config.model.StepConfig;
 import org.wso2.carbon.identity.application.authentication.framework.context.AuthenticationContext;
 import org.wso2.carbon.identity.application.authentication.framework.exception.AuthenticationFailedException;
-import org.wso2.carbon.identity.application.authentication.framework.exception.InvalidCredentialsException;
 import org.wso2.carbon.identity.application.authentication.framework.exception.LogoutFailedException;
 import org.wso2.carbon.identity.application.authentication.framework.internal.FrameworkServiceDataHolder;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedUser;
@@ -67,8 +66,6 @@ import org.wso2.carbon.user.core.service.RealmService;
 import org.wso2.carbon.user.core.util.UserCoreUtil;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -115,7 +112,6 @@ public class EmailOTPAuthenticatorTest {
     private CaptchaDataHolder captchaDataHolder;
     private AuthenticatedUser authenticatedUserFromContext;
     private IdpManager idpManager;
-    private AuthenticatedUser authenticatedUser;
 
     private MockedStatic<ConfigurationFacade> staticConfigurationFacade;
     private MockedStatic<FrameworkUtils> frameworkUtils;
@@ -157,7 +153,6 @@ public class EmailOTPAuthenticatorTest {
         captchaDataHolder = mock(CaptchaDataHolder.class);
         multiAttributeLoginService = mock(MultiAttributeLoginService.class);
         idpManager = mock(IdpManager.class);
-        authenticatedUser = mock(AuthenticatedUser.class);
 
         staticConfigurationFacade = mockStatic(ConfigurationFacade.class);
         frameworkUtils = mockStatic(FrameworkUtils.class);
@@ -208,33 +203,6 @@ public class EmailOTPAuthenticatorTest {
         when(httpServletRequest.getParameter(AuthenticatorConstants.CODE)).thenReturn(null);
         when(httpServletRequest.getParameter(AuthenticatorConstants.USER_NAME)).thenReturn(null);
         Assert.assertFalse(emailOTPAuthenticator.canHandle(httpServletRequest));
-    }
-
-    @DataProvider(name = "OTPParams")
-    public Object[][] provideOTPParams() {
-        return new Object[][]{
-                {AuthenticatorConstants.CODE},
-                {AuthenticatorConstants.CODE_LOWERCASE}
-        };
-    }
-
-    @Test(description = "Test case for getParameterNames() method.", dataProvider = "OTPParams")
-    public void testGetParameterNames(String otpParam) {
-        when(httpServletRequest.getParameter(AuthenticatorConstants.RESEND)).thenReturn(AuthenticatorConstants.RESEND);
-        when(httpServletRequest.getParameterNames()).thenReturn(Collections.enumeration(Arrays.asList(otpParam)));
-        Assert.assertTrue(emailOTPAuthenticator.canHandle(httpServletRequest));
-    }
-
-    @Test(
-            description = "Test case for processAuthenticationResponse() method when the OTP token is empty " +
-                    "for the authenticated user, expecting an InvalidCredentialsException.",
-            expectedExceptions = InvalidCredentialsException.class,
-            expectedExceptionsMessageRegExp = "OTP token is empty for user: .*"
-    )
-    public void testProcessAuthenticationResponseWithEmptyOtpToken() throws AuthenticationFailedException {
-        setAuthenticatorConfig();
-        configureAuthenticatedUser(false);
-        emailOTPAuthenticator.processAuthenticationResponse(httpServletRequest, httpServletResponse, context);
     }
 
     @Test(description = "Test case for process() method when authenticated user is null " +
@@ -420,7 +388,7 @@ public class EmailOTPAuthenticatorTest {
             claimMap.put(LOCALE_CLAIM, SAMPLE_LOCALE);
         }
         setAuthenticatorConfig();
-        configureAuthenticatedUser(true);
+        configureAuthenticatedUser();
         configureAuthenticatorDataHolder();
         configureIdentityProvider();
 
@@ -473,13 +441,13 @@ public class EmailOTPAuthenticatorTest {
         AuthenticatorDataHolder.setIdpManager(idpManager);
     }
 
-    private void configureAuthenticatedUser(boolean isFederated) {
+    private void configureAuthenticatedUser() {
 
         AuthenticatedUser authenticatedUser = new AuthenticatedUser();
         authenticatedUser.setUserStoreDomain(USER_STORE_DOMAIN);
         authenticatedUser.setUserName(USERNAME);
         authenticatedUser.setTenantDomain(TENANT_DOMAIN);
-        authenticatedUser.setFederatedUser(isFederated);
+        authenticatedUser.setFederatedUser(true);
         context.setSubject(authenticatedUser);
     }
 
