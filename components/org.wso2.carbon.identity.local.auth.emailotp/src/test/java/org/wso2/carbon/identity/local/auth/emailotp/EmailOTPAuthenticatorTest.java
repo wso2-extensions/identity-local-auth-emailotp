@@ -66,6 +66,7 @@ import org.wso2.carbon.user.core.common.User;
 import org.wso2.carbon.user.core.service.RealmService;
 import org.wso2.carbon.user.core.util.UserCoreUtil;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -92,6 +93,7 @@ import static org.testng.Assert.assertNull;
 import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.EMAIL_ADDRESS_CLAIM;
 import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.USERNAME_CLAIM;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.Claims.LOCALE_CLAIM;
+import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.EMAIL_OTP_AUTHENTICATOR_NAME;
 
 /**
  * Class containing the test cases for EmailOTPAuthenticatorTest class.
@@ -186,8 +188,7 @@ public class EmailOTPAuthenticatorTest {
     }
 
     @Test(description = "Test isRetrying in OTP Authenticators",
-            dataProvider = "authenticatorProvider",
-            expectedExceptions = NullPointerException.class)
+            dataProvider = "authenticatorProvider")
     public void testIsRetryingInOTPAuthenticators(String currentAuthenticator)
             throws AuthenticationFailedException, LogoutFailedException {
 
@@ -198,7 +199,10 @@ public class EmailOTPAuthenticatorTest {
 
         context.setCurrentAuthenticator(currentAuthenticator);
 
-        emailOTPAuthenticator.process(httpServletRequest, httpServletResponse, context);
+        try {
+            emailOTPAuthenticator.process(httpServletRequest, httpServletResponse, context);
+        } catch (NullPointerException ignored) {
+        }
         Assert.assertFalse(context.isRetrying());
     }
 
@@ -235,6 +239,52 @@ public class EmailOTPAuthenticatorTest {
         setAuthenticatorConfig();
         configureAuthenticatedUser(false);
         emailOTPAuthenticator.processAuthenticationResponse(httpServletRequest, httpServletResponse, context);
+    }
+
+    @Test(dataProvider = "ScenarioDataProvider", description = "Test case for resolveScenario() method.")
+    public void testResolveScenario(String authenticator, boolean isLogoutRequest, boolean isRetrying,
+                                    String resendCode, String codeParam, String code,
+                                    AuthenticatorConstants.AuthenticationScenarios expectedScenario) throws Exception {
+
+        context.setCurrentAuthenticator(authenticator);
+        context.setRetrying(isRetrying);
+        context.setLogoutRequest(isLogoutRequest);
+
+        when(httpServletRequest.getParameter(AuthenticatorConstants.RESEND)).thenReturn(resendCode);
+        when(httpServletRequest.getParameter(codeParam)).thenReturn(code);
+        when(httpServletRequest.getParameter(AuthenticatorConstants.USER_NAME)).thenReturn(USERNAME);
+
+        Method method = emailOTPAuthenticator.getClass()
+                .getDeclaredMethod("resolveScenario", HttpServletRequest.class, AuthenticationContext.class);
+        method.setAccessible(true);
+        Object result = method.invoke(emailOTPAuthenticator, httpServletRequest, context);
+        Assert.assertEquals(result, expectedScenario);
+    }
+
+    @DataProvider(name = "ScenarioDataProvider")
+    public Object[][] scenarioDataProvider() {
+
+        //AuthenticatorName, isLogoutRequest, isRetrying, resendCode, codeParam, code, expectedScenario
+        return new Object[][]{
+                // Initial OTP scenario where no code is available
+                {"previousAuthenticator", false, false, null, "OTPCode", null,
+                        AuthenticatorConstants.AuthenticationScenarios.INITIAL_OTP},
+                // Initial OTP scenario where code from previous authenticator is available as OTPCode
+                {"previousOTPAuthenticator", false, false, null, "OTPCode", "1234",
+                        AuthenticatorConstants.AuthenticationScenarios.INITIAL_OTP},
+                // Logout scenario
+                {"randomAuthenticator", true, true, "true", "OTPCode", "1234",
+                        AuthenticatorConstants.AuthenticationScenarios.LOGOUT},
+                // Retry scenario
+                {EMAIL_OTP_AUTHENTICATOR_NAME, false, true, null, "OTPCode", "1234",
+                        AuthenticatorConstants.AuthenticationScenarios.SUBMIT_OTP},
+                // Retry is incorrectly set due to previous authenticator
+                {"previousAuthenticator", false, true, null, "OTPCode", null,
+                        AuthenticatorConstants.AuthenticationScenarios.INITIAL_OTP},
+                // Resend scenario
+                {EMAIL_OTP_AUTHENTICATOR_NAME, false, true, "true", "OTPCode", "1234",
+                        AuthenticatorConstants.AuthenticationScenarios.RESEND_OTP},
+        };
     }
 
     @Test(description = "Test case for process() method when authenticated user is null " +
@@ -335,7 +385,7 @@ public class EmailOTPAuthenticatorTest {
         Map<Integer, StepConfig> stepConfigMap = new HashMap<>();
 
         StepConfig emailOTPStep = new StepConfig();
-        authenticatorConfig.setName(AuthenticatorConstants.EMAIL_OTP_AUTHENTICATOR_NAME);
+        authenticatorConfig.setName(EMAIL_OTP_AUTHENTICATOR_NAME);
         List<AuthenticatorConfig> authenticatorList = new ArrayList<>();
         authenticatorList.add(authenticatorConfig);
         emailOTPStep.setAuthenticatorList(authenticatorList);
@@ -379,7 +429,7 @@ public class EmailOTPAuthenticatorTest {
                 0, Boolean.FALSE, AuthenticatorConstants.USERNAME_PARAM);
         authenticatorParamMetadataList.add(usernameMetadata);
 
-        assertEquals(authenticatorDataObj.getName(), AuthenticatorConstants.EMAIL_OTP_AUTHENTICATOR_NAME);
+        assertEquals(authenticatorDataObj.getName(), EMAIL_OTP_AUTHENTICATOR_NAME);
         assertEquals(authenticatorDataObj.getDisplayName(),
                 AuthenticatorConstants.EMAIL_OTP_AUTHENTICATOR_FRIENDLY_NAME,
                 "Authenticator display name should match.");

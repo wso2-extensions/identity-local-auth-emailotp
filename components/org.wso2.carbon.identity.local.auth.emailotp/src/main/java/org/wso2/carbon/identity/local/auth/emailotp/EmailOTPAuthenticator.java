@@ -497,7 +497,8 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
 
         if (context.isLogoutRequest()) {
             return AuthenticatorConstants.AuthenticationScenarios.LOGOUT;
-        } else if (!context.isRetrying() && StringUtils.isBlank(request.getParameter(getCurrentCodeParam(request))) &&
+        } else if (!EMAIL_OTP_AUTHENTICATOR_NAME.equals(context.getCurrentAuthenticator()) ||
+                !context.isRetrying() && StringUtils.isBlank(request.getParameter(getCurrentCodeParam(request))) &&
                 !Boolean.parseBoolean(request.getParameter(AuthenticatorConstants.RESEND))) {
             return AuthenticatorConstants.AuthenticationScenarios.INITIAL_OTP;
         } else if (context.isRetrying() &&
