@@ -30,6 +30,7 @@ import org.wso2.carbon.identity.local.auth.emailotp.util.ExecutorUtils;
 import org.wso2.carbon.identity.user.registration.engine.Constants;
 import org.wso2.carbon.identity.user.registration.engine.exception.RegistrationEngineException;
 import org.wso2.carbon.identity.user.registration.engine.model.ExecutorResponse;
+import org.wso2.carbon.identity.user.registration.engine.model.RegisteringUser;
 import org.wso2.carbon.identity.user.registration.engine.model.RegistrationContext;
 
 import java.util.HashMap;
@@ -77,6 +78,10 @@ public class EmailOTPExecutorTest {
 
         Map<String, String> userInputData = new HashMap<>();
         when(registrationContext.getUserInputData()).thenReturn(userInputData);
+        RegisteringUser registeringUser = mock(RegisteringUser.class);
+        when(registrationContext.getRegisteringUser()).thenReturn(registeringUser);
+        when(registeringUser.getClaim(anyString())).thenReturn(null);
+        when(registeringUser.getUsername()).thenReturn(null);
         when(registrationContext.getTenantDomain()).thenReturn("carbon.super");
 
         commonUtilsMockedStatic.when(() -> generateOTP("carbon.super")).thenReturn("123456");
@@ -93,6 +98,10 @@ public class EmailOTPExecutorTest {
     public void testExecuteOTPGenerationFailure() throws RegistrationEngineException {
 
         Map<String, String> userInputData = new HashMap<>();
+        RegisteringUser registeringUser = mock(RegisteringUser.class);
+        when(registrationContext.getRegisteringUser()).thenReturn(registeringUser);
+        when(registeringUser.getClaim(anyString())).thenReturn(null);
+        when(registeringUser.getUsername()).thenReturn(null);
         when(registrationContext.getUserInputData()).thenReturn(userInputData);
         when(registrationContext.getTenantDomain()).thenReturn("carbon.super");
 
