@@ -36,6 +36,7 @@ import org.wso2.carbon.identity.application.authentication.framework.config.mode
 import org.wso2.carbon.identity.application.authentication.framework.config.model.StepConfig;
 import org.wso2.carbon.identity.application.authentication.framework.context.AuthenticationContext;
 import org.wso2.carbon.identity.application.authentication.framework.exception.AuthenticationFailedException;
+import org.wso2.carbon.identity.application.authentication.framework.exception.InvalidCredentialsException;
 import org.wso2.carbon.identity.application.authentication.framework.exception.LogoutFailedException;
 import org.wso2.carbon.identity.application.authentication.framework.internal.FrameworkServiceDataHolder;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedUser;
@@ -65,7 +66,10 @@ import org.wso2.carbon.user.core.common.User;
 import org.wso2.carbon.user.core.service.RealmService;
 import org.wso2.carbon.user.core.util.UserCoreUtil;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -89,6 +93,8 @@ import static org.testng.Assert.assertNull;
 import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.EMAIL_ADDRESS_CLAIM;
 import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.USERNAME_CLAIM;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.Claims.LOCALE_CLAIM;
+import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.EMAIL_OTP_AUTHENTICATOR_NAME;
+import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.IS_IDF_INITIATED_FROM_AUTHENTICATOR;
 
 /**
  * Class containing the test cases for EmailOTPAuthenticatorTest class.
@@ -112,6 +118,7 @@ public class EmailOTPAuthenticatorTest {
     private CaptchaDataHolder captchaDataHolder;
     private AuthenticatedUser authenticatedUserFromContext;
     private IdpManager idpManager;
+    private AuthenticatedUser authenticatedUser;
 
     private MockedStatic<ConfigurationFacade> staticConfigurationFacade;
     private MockedStatic<FrameworkUtils> frameworkUtils;
@@ -153,6 +160,7 @@ public class EmailOTPAuthenticatorTest {
         captchaDataHolder = mock(CaptchaDataHolder.class);
         multiAttributeLoginService = mock(MultiAttributeLoginService.class);
         idpManager = mock(IdpManager.class);
+        authenticatedUser = mock(AuthenticatedUser.class);
 
         staticConfigurationFacade = mockStatic(ConfigurationFacade.class);
         frameworkUtils = mockStatic(FrameworkUtils.class);
@@ -181,8 +189,7 @@ public class EmailOTPAuthenticatorTest {
     }
 
     @Test(description = "Test isRetrying in OTP Authenticators",
-            dataProvider = "authenticatorProvider",
-            expectedExceptions = NullPointerException.class)
+            dataProvider = "authenticatorProvider")
     public void testIsRetryingInOTPAuthenticators(String currentAuthenticator)
             throws AuthenticationFailedException, LogoutFailedException {
 
@@ -193,7 +200,10 @@ public class EmailOTPAuthenticatorTest {
 
         context.setCurrentAuthenticator(currentAuthenticator);
 
-        emailOTPAuthenticator.process(httpServletRequest, httpServletResponse, context);
+        try {
+            emailOTPAuthenticator.process(httpServletRequest, httpServletResponse, context);
+        } catch (NullPointerException ignored) {
+        }
         Assert.assertFalse(context.isRetrying());
     }
 
@@ -203,6 +213,141 @@ public class EmailOTPAuthenticatorTest {
         when(httpServletRequest.getParameter(AuthenticatorConstants.CODE)).thenReturn(null);
         when(httpServletRequest.getParameter(AuthenticatorConstants.USER_NAME)).thenReturn(null);
         Assert.assertFalse(emailOTPAuthenticator.canHandle(httpServletRequest));
+    }
+
+    @DataProvider(name = "OTPParams")
+    public Object[][] provideOTPParams() {
+
+        return new Object[][]{
+                {AuthenticatorConstants.CODE},
+                {AuthenticatorConstants.CODE_LOWERCASE}
+        };
+    }
+
+    @Test(description = "Test case for getParameterNames() method.", dataProvider = "OTPParams")
+    public void testGetParameterNames(String otpParam) {
+
+        when(httpServletRequest.getParameter(AuthenticatorConstants.RESEND)).thenReturn(AuthenticatorConstants.RESEND);
+        when(httpServletRequest.getParameterNames()).thenReturn(Collections.enumeration(
+                Collections.singletonList(otpParam)));
+        Assert.assertTrue(emailOTPAuthenticator.canHandle(httpServletRequest));
+    }
+
+    @Test(
+            description = "Test case for processAuthenticationResponse() method when the OTP token is empty " +
+                    "for the authenticated user, expecting an InvalidCredentialsException.",
+            expectedExceptions = InvalidCredentialsException.class,
+            expectedExceptionsMessageRegExp = "OTP token is empty for user: .*"
+    )
+    public void testProcessAuthenticationResponseWithEmptyOtpToken() throws AuthenticationFailedException {
+
+        setAuthenticatorConfig();
+        configureAuthenticatedUser(false);
+        emailOTPAuthenticator.processAuthenticationResponse(httpServletRequest, httpServletResponse, context);
+    }
+
+    @Test(dataProvider = "ScenarioDataProvider", description = "Test case for resolveScenario() method.")
+    public void testResolveScenario(String authenticator, boolean isLogoutRequest, boolean isRetrying,
+                                    String resendCode, String codeParam, String code,
+                                    AuthenticatorConstants.AuthenticationScenarios expectedScenario) throws Exception {
+
+        context.setCurrentAuthenticator(authenticator);
+        context.setRetrying(isRetrying);
+        context.setLogoutRequest(isLogoutRequest);
+
+        when(httpServletRequest.getParameter(AuthenticatorConstants.RESEND)).thenReturn(resendCode);
+        when(httpServletRequest.getParameter(codeParam)).thenReturn(code);
+        when(httpServletRequest.getParameter(AuthenticatorConstants.USER_NAME)).thenReturn(USERNAME);
+
+        Method method = emailOTPAuthenticator.getClass()
+                .getDeclaredMethod("resolveScenario", HttpServletRequest.class, AuthenticationContext.class);
+        method.setAccessible(true);
+        Object result = method.invoke(emailOTPAuthenticator, httpServletRequest, context);
+        Assert.assertEquals(result, expectedScenario);
+    }
+
+    @DataProvider(name = "ScenarioDataProvider")
+    public Object[][] scenarioDataProvider() {
+
+        //AuthenticatorName, isLogoutRequest, isRetrying, resendCode, codeParam, code, expectedScenario
+        return new Object[][]{
+                // Initial OTP scenario where no code is available
+                {"previousAuthenticator", false, false, null, "OTPCode", null,
+                        AuthenticatorConstants.AuthenticationScenarios.INITIAL_OTP},
+                // Initial OTP scenario where code from previous authenticator is available as OTPCode
+                {"previousOTPAuthenticator", false, false, null, "OTPCode", "1234",
+                        AuthenticatorConstants.AuthenticationScenarios.INITIAL_OTP},
+                // Logout scenario
+                {"randomAuthenticator", true, true, "true", "OTPCode", "1234",
+                        AuthenticatorConstants.AuthenticationScenarios.LOGOUT},
+                // Retry scenario
+                {EMAIL_OTP_AUTHENTICATOR_NAME, false, true, null, "OTPCode", "1234",
+                        AuthenticatorConstants.AuthenticationScenarios.SUBMIT_OTP},
+                // Retry is incorrectly set due to previous authenticator
+                {"previousAuthenticator", false, true, null, "OTPCode", null,
+                        AuthenticatorConstants.AuthenticationScenarios.INITIAL_OTP},
+                // Resend scenario
+                {EMAIL_OTP_AUTHENTICATOR_NAME, false, true, "true", "OTPCode", "1234",
+                        AuthenticatorConstants.AuthenticationScenarios.RESEND_OTP},
+        };
+    }
+
+    @Test(dataProvider = "IDFInitiationDataProvider")
+    public void testInitiateAuthenticationRequestForIDFInitiation(boolean isUsernameAvailable, boolean isUserAvailable,
+                                                                  Boolean initialIsIDFInitiatedFromAuthenticator,
+                                                                  Boolean expectedIsIDFInitiatedFromAuthenticator)
+            throws Exception {
+
+        context.setProperty(IS_IDF_INITIATED_FROM_AUTHENTICATOR, initialIsIDFInitiatedFromAuthenticator);
+        if (isUsernameAvailable) {
+            when(httpServletRequest.getParameter(AuthenticatorConstants.USER_NAME)).thenReturn(USERNAME);
+        } else {
+            when(httpServletRequest.getParameter(AuthenticatorConstants.USER_NAME)).thenReturn(null);
+        }
+        context.setCurrentStep(2);
+        SequenceConfig sequenceConfig = new SequenceConfig();
+        StepConfig stepConfig = new StepConfig();
+        stepConfig.setSubjectAttributeStep(true);
+        Map<Integer, StepConfig> stepConfigMap = new HashMap<>();
+        stepConfigMap.put(2, stepConfig);
+        sequenceConfig.setStepMap(stepConfigMap);
+        context.setSequenceConfig(sequenceConfig);
+
+        if (isUserAvailable) {
+            AuthenticatedUser user = new AuthenticatedUser();
+            user.setFederatedUser(true);
+            user.setAuthenticatedSubjectIdentifier(USERNAME);
+            stepConfig.setAuthenticatedUser(user);
+        }
+
+        when(ConfigurationFacade.getInstance()).thenReturn(configurationFacade);
+        when(configurationFacade.getAuthenticationEndpointURL()).thenReturn(DUMMY_LOGIN_PAGE_URL);
+
+        try {
+            Method method = emailOTPAuthenticator.getClass()
+                    .getDeclaredMethod("initiateAuthenticationRequest",
+                            HttpServletRequest.class,
+                            HttpServletResponse.class,
+                            AuthenticationContext.class);
+            method.setAccessible(true);
+            method.invoke(emailOTPAuthenticator, httpServletRequest, httpServletResponse, context);
+        } catch (InvocationTargetException e) {
+            // Ignore the exception
+        }
+
+        Assert.assertEquals(context.getProperty(IS_IDF_INITIATED_FROM_AUTHENTICATOR),
+                expectedIsIDFInitiatedFromAuthenticator);
+
+    }
+
+    @DataProvider(name = "IDFInitiationDataProvider")
+    public Object[][] iDFInitiationDataProvider() {
+
+        return new Object[][]{
+                {true, false, true, null},
+                {false, false, null, true},
+                {false, true, null, null},
+        };
     }
 
     @Test(description = "Test case for process() method when authenticated user is null " +
@@ -217,8 +362,7 @@ public class EmailOTPAuthenticatorTest {
         AuthenticatorFlowStatus status = emailOTPAuthenticator.process(httpServletRequest, httpServletResponse,
                 context);
         assertEquals(status, AuthenticatorFlowStatus.INCOMPLETE);
-        Assert.assertTrue(((boolean) context.getProperty(
-                AuthenticatorConstants.IS_IDF_INITIATED_FROM_AUTHENTICATOR)));
+        Assert.assertTrue(((boolean) context.getProperty(IS_IDF_INITIATED_FROM_AUTHENTICATOR)));
 
         User user = new User(UUID.randomUUID().toString(), USERNAME, null);
         user.setUserStoreDomain(USER_STORE_DOMAIN);
@@ -303,7 +447,7 @@ public class EmailOTPAuthenticatorTest {
         Map<Integer, StepConfig> stepConfigMap = new HashMap<>();
 
         StepConfig emailOTPStep = new StepConfig();
-        authenticatorConfig.setName(AuthenticatorConstants.EMAIL_OTP_AUTHENTICATOR_NAME);
+        authenticatorConfig.setName(EMAIL_OTP_AUTHENTICATOR_NAME);
         List<AuthenticatorConfig> authenticatorList = new ArrayList<>();
         authenticatorList.add(authenticatorConfig);
         emailOTPStep.setAuthenticatorList(authenticatorList);
@@ -347,7 +491,7 @@ public class EmailOTPAuthenticatorTest {
                 0, Boolean.FALSE, AuthenticatorConstants.USERNAME_PARAM);
         authenticatorParamMetadataList.add(usernameMetadata);
 
-        assertEquals(authenticatorDataObj.getName(), AuthenticatorConstants.EMAIL_OTP_AUTHENTICATOR_NAME);
+        assertEquals(authenticatorDataObj.getName(), EMAIL_OTP_AUTHENTICATOR_NAME);
         assertEquals(authenticatorDataObj.getDisplayName(),
                 AuthenticatorConstants.EMAIL_OTP_AUTHENTICATOR_FRIENDLY_NAME,
                 "Authenticator display name should match.");
@@ -388,7 +532,7 @@ public class EmailOTPAuthenticatorTest {
             claimMap.put(LOCALE_CLAIM, SAMPLE_LOCALE);
         }
         setAuthenticatorConfig();
-        configureAuthenticatedUser();
+        configureAuthenticatedUser(true);
         configureAuthenticatorDataHolder();
         configureIdentityProvider();
 
@@ -441,13 +585,13 @@ public class EmailOTPAuthenticatorTest {
         AuthenticatorDataHolder.setIdpManager(idpManager);
     }
 
-    private void configureAuthenticatedUser() {
+    private void configureAuthenticatedUser(boolean isFederated) {
 
         AuthenticatedUser authenticatedUser = new AuthenticatedUser();
         authenticatedUser.setUserStoreDomain(USER_STORE_DOMAIN);
         authenticatedUser.setUserName(USERNAME);
         authenticatedUser.setTenantDomain(TENANT_DOMAIN);
-        authenticatedUser.setFederatedUser(true);
+        authenticatedUser.setFederatedUser(isFederated);
         context.setSubject(authenticatedUser);
     }
 
