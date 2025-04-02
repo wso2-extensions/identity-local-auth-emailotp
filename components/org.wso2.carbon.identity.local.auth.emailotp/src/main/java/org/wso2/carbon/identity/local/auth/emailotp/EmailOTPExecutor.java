@@ -54,7 +54,7 @@ import static org.wso2.carbon.identity.user.registration.engine.Constants.Execut
 import static org.wso2.carbon.identity.user.registration.engine.Constants.ExecutorStatus.STATUS_USER_INPUT_REQUIRED;
 
 /**
- * Email OTP Executor.
+ * Email OTP executor for user registration.
  */
 public class EmailOTPExecutor implements Executor {
 
@@ -71,13 +71,11 @@ public class EmailOTPExecutor implements Executor {
         Map<String, Object> contextProperties = new HashMap<>();
         executorResponse.setContextProperty(contextProperties);
 
-        handleRetryCount(registrationContext, executorResponse);
+        handleMaxRetryCount(registrationContext, executorResponse);
         if (STATUS_USER_ERROR.equals(executorResponse.getResult())) {
             return executorResponse;
         }
 
-        // Null OTP indicates the initial node execution. Therefore, OTP should be requested from the user.
-        // Further, the executor should trigger the email sending logic.
         if (isInitiateRequest(registrationContext)) {
             initiateEmailOTPRegistration(registrationContext, executorResponse);
         } else {
@@ -96,12 +94,26 @@ public class EmailOTPExecutor implements Executor {
         return initiationData;
     }
 
+    /**
+     * Check whether the request is an initiate request or not.
+     * OTP is null and the retry count is null indicates that the request is an initiate request.
+     *
+     * @param registrationContext Registration context.
+     * @return true if it is an initiate request, false otherwise.
+     */
     private boolean isInitiateRequest(RegistrationContext registrationContext) {
 
-        return registrationContext.getUserInputData().get(ExecutorConstants.OTP) == null;
+        return registrationContext.getUserInputData().get(ExecutorConstants.OTP) == null &&
+                registrationContext.getProperty(ExecutorConstants.EMAIL_OTP_RETRY_COUNT) == null;
     }
 
-    private void handleRetryCount(RegistrationContext registrationContext, ExecutorResponse executorResponse) {
+    /**
+     * Handle the maximum retry count scenario.
+     *
+     * @param registrationContext Registration context.
+     * @param executorResponse    Executor response.
+     */
+    private void handleMaxRetryCount(RegistrationContext registrationContext, ExecutorResponse executorResponse) {
 
         // To maintain the max retry attempts, the executor should maintain a counter in the context properties.
         if (registrationContext.getProperty(ExecutorConstants.EMAIL_OTP_RETRY_COUNT) != null) {
@@ -112,12 +124,78 @@ public class EmailOTPExecutor implements Executor {
                 executorResponse.setResult(Constants.ExecutorStatus.STATUS_USER_ERROR);
                 executorResponse.setErrorMessage("Maximum retry count exceeded.");
             }
-            executorResponse.getContextProperties().put(ExecutorConstants.EMAIL_OTP_RETRY_COUNT, retryCount + 1);
-            return;
         }
-        executorResponse.getContextProperties().put(ExecutorConstants.EMAIL_OTP_RETRY_COUNT, 1);
     }
 
+    /**
+     * Handle the retry scenario.
+     *
+     * @param context          Registration context.
+     * @param executorResponse Executor response.
+     */
+    private void handleRetry(RegistrationContext context, ExecutorResponse executorResponse)
+            throws RegistrationEngineServerException {
+
+        if (executorResponse.getResult().equals(Constants.ExecutorStatus.STATUS_RETRY)) {
+            Object isOTPExpiredObj = context.getProperty(ExecutorConstants.OTP_EXPIRED);
+            if (isOTPExpiredObj != null && (boolean) isOTPExpiredObj) {
+                sendEmailOTP(AuthenticatorConstants.AuthenticationScenarios.RESEND_OTP, context,
+                        executorResponse);
+                return;
+            }
+            executorResponse.getContextProperties().put(AuthenticatorConstants.RESEND, true);
+            executorResponse.setErrorMessage("Invalid or expired OTP. Please try again.");
+        }
+        updateRetryCount(context, executorResponse);
+    }
+
+    /**
+     * Update the retry count in the context properties.
+     *
+     * @param context          Registration context.
+     * @param executorResponse Executor response.
+     */
+    private void updateRetryCount(RegistrationContext context, ExecutorResponse executorResponse) {
+
+        if (executorResponse.getResult().equals(Constants.ExecutorStatus.STATUS_RETRY) ||
+                executorResponse.getResult().equals(STATUS_USER_INPUT_REQUIRED)) {
+            // If the OTP is expired, the retry count should not be incremented.
+            if (isExpiredScenario(context, executorResponse)) {
+                return;
+            }
+            if (context.getProperty(ExecutorConstants.EMAIL_OTP_RETRY_COUNT) != null) {
+                // Increment the retry count.
+                int retryCount = (int) context.getProperty(ExecutorConstants.EMAIL_OTP_RETRY_COUNT);
+                executorResponse.getContextProperties().put(ExecutorConstants.EMAIL_OTP_RETRY_COUNT, retryCount + 1);
+            } else {
+                // Initialize the retry count.
+                executorResponse.getContextProperties().put(ExecutorConstants.EMAIL_OTP_RETRY_COUNT, 1);
+            }
+        }
+        if (executorResponse.getResult().equals(Constants.ExecutorStatus.STATUS_COMPLETE)) {
+            executorResponse.getContextProperties().remove(ExecutorConstants.EMAIL_OTP_RETRY_COUNT);
+        }
+    }
+
+    /**
+     * Check whether the scenario is expired or not.
+     *
+     * @param context  Registration context.
+     * @param response Executor response.
+     * @return true if the scenario is expired, false otherwise.
+     */
+    private boolean isExpiredScenario(RegistrationContext context, ExecutorResponse response) {
+
+        Object isOTPExpiredObj = context.getProperty(ExecutorConstants.OTP_EXPIRED);
+        return isOTPExpiredObj != null && (boolean) isOTPExpiredObj;
+    }
+
+    /**
+     * Initiate the email OTP registration.
+     *
+     * @param context          Registration context.
+     * @param executorResponse Executor response.
+     */
     private void initiateEmailOTPRegistration(RegistrationContext context, ExecutorResponse executorResponse)
             throws RegistrationEngineServerException {
 
@@ -129,8 +207,15 @@ public class EmailOTPExecutor implements Executor {
         executorResponse.setRequiredData(requiredData);
     }
 
+    /**
+     * Process the email OTP registration.
+     *
+     * @param registrationContext Registration context.
+     * @param executorResponse    Executor response.
+     */
     private void processEmailOTPRegistration(RegistrationContext registrationContext,
                                              ExecutorResponse executorResponse) throws RegistrationEngineException {
+
         try {
             if (LoggerUtils.isDiagnosticLogsEnabled()) {
                 DiagnosticLog.DiagnosticLogBuilder diagnosticLogBuilder = new DiagnosticLog.DiagnosticLogBuilder(
@@ -154,8 +239,8 @@ public class EmailOTPExecutor implements Executor {
                 executorResponse.setErrorMessage("OTP is not generated.");
                 return;
             }
-            boolean isOtpExpired = isOtpExpired(registrationContext.getTenantDomain(), registrationContext);
             if (otp.equals(contextOtp)) {
+                boolean isOtpExpired = isOtpExpired(registrationContext.getTenantDomain(), registrationContext);
                 if (isOtpExpired) {
                     executorResponse.setResult(Constants.ExecutorStatus.STATUS_RETRY);
                     registrationContext.setProperty(ExecutorConstants.OTP_EXPIRED, true);
@@ -204,14 +289,21 @@ public class EmailOTPExecutor implements Executor {
         return System.currentTimeMillis() >= generatedTime + expireTime;
     }
 
+    /**
+     * Send email OTP to the user.
+     *
+     * @param scenario         Authentication scenario.
+     * @param context          Registration context.
+     * @param executorResponse Executor response.
+     */
     private void sendEmailOTP(AuthenticatorConstants.AuthenticationScenarios scenario, RegistrationContext context,
                               ExecutorResponse executorResponse) throws RegistrationEngineServerException {
 
         try {
             Map<String, Object> contextProperties = executorResponse.getContextProperties();
             String tenantDomain = context.getTenantDomain();
-            String email = String.valueOf(context.getUserInputData().get(EMAIL_ADDRESS_CLAIM));
-            String username = String.valueOf(context.getUserInputData().get(USERNAME_CLAIM));
+            String email = String.valueOf(context.getRegisteringUser().getClaim(EMAIL_ADDRESS_CLAIM));
+            String username = String.valueOf(context.getRegisteringUser().getUsername());
 
             // Generate OTP.
             String otp = generateOTP(tenantDomain);
@@ -254,23 +346,6 @@ public class EmailOTPExecutor implements Executor {
             }
             throw handleAuthErrorScenario(Constants.ErrorMessages.ERROR_CODE_EXECUTOR_FAILURE, e,
                     context, "Error occurred while sending email OTP.");
-        }
-    }
-
-    private void handleRetry(RegistrationContext context, ExecutorResponse executorResponse)
-            throws RegistrationEngineServerException {
-
-        if (executorResponse.getResult().equals(Constants.ExecutorStatus.STATUS_RETRY)) {
-            Object isOTPExpiredObj = context.getProperty(ExecutorConstants.OTP_EXPIRED);
-            if (isOTPExpiredObj != null && (boolean) isOTPExpiredObj) {
-                sendEmailOTP(AuthenticatorConstants.AuthenticationScenarios.RESEND_OTP, context,
-                        executorResponse);
-                executorResponse.setResult(Constants.ExecutorStatus.STATUS_RETRY);
-                executorResponse.setErrorMessage("OTP expired. Please try again.");
-                return;
-            }
-            executorResponse.getContextProperties().put(AuthenticatorConstants.RESEND, true);
-            executorResponse.setErrorMessage("Invalid OTP. Please try again.");
         }
     }
 
