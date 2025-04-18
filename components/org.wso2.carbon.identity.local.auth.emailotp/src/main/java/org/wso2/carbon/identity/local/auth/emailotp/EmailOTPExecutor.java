@@ -299,10 +299,27 @@ public class EmailOTPExecutor implements Executor {
     private void sendEmailOTP(AuthenticatorConstants.AuthenticationScenarios scenario, RegistrationContext context,
                               ExecutorResponse executorResponse) throws RegistrationEngineServerException {
 
+        String email;
+        String template;
+        String code;
+
+        if (context.getProperty("flow") == "recovery") {
+            //Hardcoded for now, need to resolve email using the username in userstore.
+            email = "kumuditha@wso2.com";
+            template = "passwordResetOTP";
+            code = "confirmation-code";
+        } else if (context.getProperty("flow") == "registration") {
+            email = String.valueOf(context.getRegisteringUser().getClaim(EMAIL_ADDRESS_CLAIM));
+            template = ExecutorConstants.EMAIL_OTP_VERIFY_TEMPLATE;
+            code = CODE;
+        } else {
+            throw handleAuthErrorScenario(Constants.ErrorMessages.ERROR_CODE_EXECUTOR_FAILURE, null,
+                    context, "Invalid flow type.");
+        }
+
         try {
             Map<String, Object> contextProperties = executorResponse.getContextProperties();
             String tenantDomain = context.getTenantDomain();
-            String email = String.valueOf(context.getRegisteringUser().getClaim(EMAIL_ADDRESS_CLAIM));
             String username = String.valueOf(context.getRegisteringUser().getUsername());
 
             // Generate OTP.
@@ -318,8 +335,8 @@ public class EmailOTPExecutor implements Executor {
             executorResponse.setAdditionalInfo(additionalInfo);
 
             Map<String, Object> metaProperties = new HashMap<>();
-            metaProperties.put(CODE, otp);
-            metaProperties.put(EMAIL_TEMPLATE_TYPE, ExecutorConstants.EMAIL_OTP_VERIFY_TEMPLATE);
+            metaProperties.put(code, otp);
+            metaProperties.put(EMAIL_TEMPLATE_TYPE, template);
             metaProperties.put(ARBITRARY_SEND_TO, email);
             metaProperties.put(ExecutorConstants.TENANT_DOMAIN, tenantDomain);
             triggerEvent(IdentityEventConstants.Event.TRIGGER_NOTIFICATION, metaProperties);
