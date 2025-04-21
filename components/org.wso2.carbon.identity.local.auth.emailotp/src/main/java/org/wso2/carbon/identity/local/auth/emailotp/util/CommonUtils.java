@@ -16,17 +16,18 @@
  * under the License.
  */
 
-package org.wso2.carbon.identity.local.auth.emailotp;
+package org.wso2.carbon.identity.local.auth.emailotp.util;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.math.NumberUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.wso2.carbon.identity.application.common.model.Property;
 import org.wso2.carbon.identity.claim.metadata.mgt.exception.ClaimMetadataException;
+import org.wso2.carbon.identity.governance.IdentityGovernanceException;
+import org.wso2.carbon.identity.governance.IdentityGovernanceService;
 import org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants;
-import org.wso2.carbon.identity.local.auth.emailotp.exception.EmailOtpAuthenticatorServerException;
 import org.wso2.carbon.identity.local.auth.emailotp.internal.AuthenticatorDataHolder;
-import org.wso2.carbon.identity.local.auth.emailotp.util.AuthenticatorUtils;
 
 import java.security.SecureRandom;
 
@@ -46,9 +47,9 @@ public class CommonUtils {
      *
      * @param tenantDomain Tenant domain.
      * @return Generated OTP.
-     * @throws EmailOtpAuthenticatorServerException Email OTP Authenticator Server Exception.
+     * @throws IdentityGovernanceException Identity Governance Exception.
      */
-    protected static String generateOTP(String tenantDomain) throws EmailOtpAuthenticatorServerException {
+    public static String generateOTP(String tenantDomain) throws IdentityGovernanceException {
 
         String charSet = getOTPCharset(tenantDomain);
         int otpLength = getOTPLength(tenantDomain);
@@ -62,10 +63,10 @@ public class CommonUtils {
         return sb.toString();
     }
 
-    protected static int getOTPLength(String tenantDomain) throws EmailOtpAuthenticatorServerException {
+    public static int getOTPLength(String tenantDomain) throws IdentityGovernanceException {
 
         int otpLength = AuthenticatorConstants.DEFAULT_OTP_LENGTH;
-        String configuredOTPLength = AuthenticatorUtils.getEmailAuthenticatorConfig(
+        String configuredOTPLength = getEmailAuthenticatorConfig(
                 AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_LENGTH, tenantDomain);
         if (NumberUtils.isNumber(configuredOTPLength)) {
             otpLength = Integer.parseInt(configuredOTPLength);
@@ -73,11 +74,10 @@ public class CommonUtils {
         return otpLength;
     }
 
-    private static String getOTPCharset(String tenantDomain) throws EmailOtpAuthenticatorServerException {
+    public static String getOTPCharset(String tenantDomain) throws IdentityGovernanceException {
 
-        boolean useAlphanumericChars = Boolean.parseBoolean(
-                AuthenticatorUtils.getEmailAuthenticatorConfig(
-                        AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_USE_ALPHANUMERIC_CHARS, tenantDomain));
+        boolean useAlphanumericChars = Boolean.parseBoolean(getEmailAuthenticatorConfig(
+                AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_USE_ALPHANUMERIC_CHARS, tenantDomain));
         if (useAlphanumericChars) {
             return AuthenticatorConstants.EMAIL_OTP_UPPER_CASE_ALPHABET_CHAR_SET +
                     AuthenticatorConstants.EMAIL_OTP_NUMERIC_CHAR_SET;
@@ -92,7 +92,7 @@ public class CommonUtils {
      * @return Email masking pattern.
      * @throws ClaimMetadataException Claim Metadata Exception.
      */
-    protected static String getEmailMaskingPattern(String tenantDomain) throws ClaimMetadataException {
+    public static String getEmailMaskingPattern(String tenantDomain) throws ClaimMetadataException {
 
         String regex = AuthenticatorDataHolder.getClaimMetadataManagementService().
                 getMaskingRegexForLocalClaim(AuthenticatorConstants.Claims.EMAIL_CLAIM, tenantDomain);
@@ -107,13 +107,13 @@ public class CommonUtils {
      *
      * @param tenantDomain Tenant domain.
      * @return OTP validity period.
-     * @throws EmailOtpAuthenticatorServerException Email OTP Authenticator Server Exception.
+     * @throws IdentityGovernanceException Identity Governance Exception.
      */
     public static long getOtpValidityPeriod(String tenantDomain)
-            throws EmailOtpAuthenticatorServerException {
+            throws IdentityGovernanceException {
 
-        String value = AuthenticatorUtils.getEmailAuthenticatorConfig(
-                AuthenticatorConstants.ConnectorConfig.OTP_EXPIRY_TIME, tenantDomain);
+        String value = getEmailAuthenticatorConfig(AuthenticatorConstants.ConnectorConfig.OTP_EXPIRY_TIME,
+                tenantDomain);
         if (StringUtils.isBlank(value)) {
             return AuthenticatorConstants.DEFAULT_EMAIL_OTP_VALIDITY_IN_MILLIS;
         }
@@ -135,5 +135,23 @@ public class CommonUtils {
         }
         // Converting to milliseconds since the config is provided in seconds.
         return validityTime * 1000;
+    }
+
+    /**
+     * Get email authenticator config related to the given key.
+     *
+     * @param key          Authenticator config key.
+     * @param tenantDomain Tenant domain.
+     * @return Value associated with the given config key.
+     * @throws IdentityGovernanceException Identity Governance Exception.
+     */
+    public static String getEmailAuthenticatorConfig(String key, String tenantDomain)
+            throws IdentityGovernanceException {
+
+
+        Property[] connectorConfigs;
+        IdentityGovernanceService governanceService = AuthenticatorDataHolder.getIdentityGovernanceService();
+        connectorConfigs = governanceService.getConfiguration(new String[]{key}, tenantDomain);
+        return connectorConfigs[0].getValue();
     }
 }

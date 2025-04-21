@@ -28,13 +28,6 @@ public class ExecutorConstants {
     }
 
     public static final String EMAIL_OTP_EXECUTOR_NAME = "EmailOTPExecutor";
-    public static final String OTP = "otp";
-    public static final String OTP_LENGTH = "otpLength";
-    public static final String OTP_GENERATED_TIME = "tokenGeneratedTime";
-    public static final String OTP_EXPIRED = "isOTPExpired";
-    public static final String EMAIL_OTP_RETRY_COUNT = "emailOTPRetryCount";
-    public static final String USER_NAME = "username";
-    public static final String TENANT_DOMAIN = "tenantDomain";
     public static final String EMAIL_OTP_VERIFY_TEMPLATE = "EmailOTPVerification";
     public static final String EMAIL_VERIFIED_CLAIM_URI = "http://wso2.org/claims/identity/emailVerified";
 }

@@ -57,6 +57,7 @@ import org.wso2.carbon.identity.governance.IdentityGovernanceService;
 import org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants;
 import org.wso2.carbon.identity.local.auth.emailotp.internal.AuthenticatorDataHolder;
 import org.wso2.carbon.identity.local.auth.emailotp.util.AuthenticatorUtils;
+import org.wso2.carbon.identity.local.auth.emailotp.util.CommonUtils;
 import org.wso2.carbon.identity.multi.attribute.login.mgt.MultiAttributeLoginService;
 import org.wso2.carbon.idp.mgt.IdentityProviderManagementException;
 import org.wso2.carbon.idp.mgt.IdpManager;
@@ -127,6 +128,7 @@ public class EmailOTPAuthenticatorTest {
     private MockedStatic<FileBasedConfigurationBuilder> staticFileBasedConfigurationBuilder;
     private MockedStatic<FrameworkServiceDataHolder> staticFrameworkServiceDataHolder;
     private MockedStatic<AuthenticatorUtils> authenticatorUtils;
+    private MockedStatic<CommonUtils> commonUtils;
     private MockedStatic<CaptchaDataHolder> staticCaptchaDataHolder;
     private MockedStatic<CaptchaUtil> captchaUtil;
     private MockedStatic<UserCoreUtil> userCoreUtil;
@@ -170,6 +172,7 @@ public class EmailOTPAuthenticatorTest {
         staticFileBasedConfigurationBuilder = mockStatic(FileBasedConfigurationBuilder.class);
         staticFrameworkServiceDataHolder = mockStatic(FrameworkServiceDataHolder.class);
         authenticatorUtils = mockStatic(AuthenticatorUtils.class);
+        commonUtils = mockStatic(CommonUtils.class);
         staticCaptchaDataHolder = mockStatic(CaptchaDataHolder.class);
         captchaUtil = mockStatic(CaptchaUtil.class);
         userCoreUtil = mockStatic(UserCoreUtil.class, Mockito.CALLS_REAL_METHODS);
@@ -614,6 +617,7 @@ public class EmailOTPAuthenticatorTest {
         staticFileBasedConfigurationBuilder.close();
         staticFrameworkServiceDataHolder.close();
         authenticatorUtils.close();
+        commonUtils.close();
         staticCaptchaDataHolder.close();
         captchaUtil.close();
         userCoreUtil.close();
