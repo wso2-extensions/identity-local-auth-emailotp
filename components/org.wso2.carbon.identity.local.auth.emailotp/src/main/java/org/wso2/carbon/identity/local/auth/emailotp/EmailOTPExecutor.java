@@ -70,7 +70,6 @@ public class EmailOTPExecutor extends AbstractOTPExecutor {
 
         String tenantDomain = context.getTenantDomain();
         String email = String.valueOf(context.getRegisteringUser().getClaim(EMAIL_ADDRESS_CLAIM));
-        String username = String.valueOf(context.getRegisteringUser().getUsername());
 
         Map<String, Object> eventProperties = new HashMap<>();
         eventProperties.put(CODE, otp.getValue());
@@ -85,8 +84,8 @@ public class EmailOTPExecutor extends AbstractOTPExecutor {
             diagnosticLogBuilder.resultMessage("Email OTP sent successfully.")
                     .resultStatus(DiagnosticLog.ResultStatus.SUCCESS)
                     .logDetailLevel(DiagnosticLog.LogDetailLevel.APPLICATION)
-                    .inputParam(LogConstants.InputKeys.USER, LoggerUtils.isLogMaskingEnable ?
-                            LoggerUtils.getMaskedContent(username) : username)
+                    .inputParam(LogConstants.InputKeys.SUBJECT, LoggerUtils.isLogMaskingEnable ?
+                            LoggerUtils.getMaskedContent(email) : email)
                     .inputParam("scenario", scenario.name());
             LoggerUtils.triggerDiagnosticLogEvent(diagnosticLogBuilder);
         }
@@ -94,7 +93,7 @@ public class EmailOTPExecutor extends AbstractOTPExecutor {
     }
 
     @Override
-    protected long getOtpValidityPeriod(String tenantDomain) throws RegistrationEngineException {
+    protected long getOTPValidityPeriod(String tenantDomain) throws RegistrationEngineException {
 
         try {
             return CommonUtils.getOtpValidityPeriod(tenantDomain);
