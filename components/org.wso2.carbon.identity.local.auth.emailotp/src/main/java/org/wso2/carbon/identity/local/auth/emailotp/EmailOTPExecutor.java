@@ -43,7 +43,6 @@ import java.util.Map;
 import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.EMAIL_ADDRESS_CLAIM;
 import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.USERNAME_CLAIM;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.CODE;
-import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.LogConstants.ActionIDs.PROCESS_AUTHENTICATION_RESPONSE;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.LogConstants.EMAIL_OTP_SERVICE;
 
 /**
@@ -157,8 +156,8 @@ public class EmailOTPExecutor extends AbstractOTPExecutor {
     }
 
     @Override
-    protected DiagnosticLog.DiagnosticLogBuilder getDiagnosticLogBuilder() {
+    protected String getDiagnosticLogComponentId() {
 
-        return new DiagnosticLog.DiagnosticLogBuilder(EMAIL_OTP_SERVICE, PROCESS_AUTHENTICATION_RESPONSE);
+        return EMAIL_OTP_SERVICE;
     }
 }
