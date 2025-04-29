@@ -119,6 +119,8 @@ public class EmailOTPExecutor extends AbstractOTPExecutor {
 
         Map<String, Object> updatedClaims = new HashMap<>();
         updatedClaims.put(ExecutorConstants.EMAIL_VERIFIED_CLAIM_URI, true);
+        updatedClaims.put(ExecutorConstants.VERIFIED_EMAIL_ADDRESSES_CLAIM_URI,
+                registrationContext.getRegisteringUser().getClaim(EMAIL_ADDRESS_CLAIM));
         executorResponse.setUpdatedUserClaims(updatedClaims);
     }
 

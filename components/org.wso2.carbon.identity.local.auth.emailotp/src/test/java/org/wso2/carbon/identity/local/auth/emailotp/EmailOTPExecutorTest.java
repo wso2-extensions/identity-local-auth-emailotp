@@ -146,6 +146,9 @@ public class EmailOTPExecutorTest {
     public void testHandleClaimUpdate() {
 
         ExecutorResponse executorResponse = new ExecutorResponse();
+        RegisteringUser registeringUser = mock(RegisteringUser.class);
+        when(registrationContext.getRegisteringUser()).thenReturn(registeringUser);
+        when(registeringUser.getClaim(EMAIL_ADDRESS_CLAIM)).thenReturn(TEST_USER_EMAIL);
         emailOTPExecutor.handleClaimUpdate(registrationContext, executorResponse);
         Assert.assertEquals(executorResponse.getUpdatedUserClaims().get(ExecutorConstants.EMAIL_VERIFIED_CLAIM_URI),
                 true);
