@@ -85,6 +85,10 @@
             <artifactId>org.wso2.carbon.identity.event.handler.notification</artifactId>
         </dependency>
         <dependency>
+            <groupId>org.wso2.carbon.identity.auth.otp.commons</groupId>
+            <artifactId>org.wso2.carbon.identity.auth.otp.core</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.wso2.orbit.org.owasp.encoder</groupId>
             <artifactId>encoder</artifactId>
         </dependency>
@@ -161,6 +165,9 @@
                             version="${carbon.identity.framework.imp.pkg.version.range}",
                             org.wso2.carbon.identity.user.registration.engine.model;
                             version="${carbon.identity.framework.imp.pkg.version.range}",
+                            org.wso2.carbon.identity.auth.otp.core; version="${identity.auth.otp.commons.version.range}",
+                            org.wso2.carbon.identity.auth.otp.core.constant; version="${identity.auth.otp.commons.version.range}",
+                            org.wso2.carbon.identity.auth.otp.core.model; version="${identity.auth.otp.commons.version.range}",
                         </Import-Package>
                     </instructions>
                 </configuration>

@@ -57,10 +57,12 @@ import org.wso2.carbon.identity.event.IdentityEventConstants;
 import org.wso2.carbon.identity.event.IdentityEventException;
 import org.wso2.carbon.identity.event.event.Event;
 import org.wso2.carbon.identity.event.handler.notification.NotificationConstants;
+import org.wso2.carbon.identity.governance.IdentityGovernanceException;
 import org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants;
 import org.wso2.carbon.identity.local.auth.emailotp.exception.EmailOtpAuthenticatorServerException;
 import org.wso2.carbon.identity.local.auth.emailotp.internal.AuthenticatorDataHolder;
 import org.wso2.carbon.identity.local.auth.emailotp.util.AuthenticatorUtils;
+import org.wso2.carbon.identity.local.auth.emailotp.util.CommonUtils;
 import org.wso2.carbon.idp.mgt.IdentityProviderManagementException;
 import org.wso2.carbon.user.api.UserRealm;
 import org.wso2.carbon.user.api.UserStoreException;
@@ -1468,9 +1470,12 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
 
         try {
             return CommonUtils.getOtpValidityPeriod(tenantDomain);
-        } catch (EmailOtpAuthenticatorServerException exception) {
+        } catch (IdentityGovernanceException exception) {
+            EmailOtpAuthenticatorServerException e = new EmailOtpAuthenticatorServerException(
+                    AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_CONFIG.getCode(),
+                    AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_CONFIG.getMessage(), exception);
             throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_CONFIG,
-                    exception, context);
+                    e, context);
         }
     }
 
@@ -1544,7 +1549,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
 
         try {
             return CommonUtils.generateOTP(tenantDomain);
-        } catch (EmailOtpAuthenticatorServerException e) {
+        } catch (IdentityGovernanceException e) {
             throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_CONFIG,
                     context);
         }
