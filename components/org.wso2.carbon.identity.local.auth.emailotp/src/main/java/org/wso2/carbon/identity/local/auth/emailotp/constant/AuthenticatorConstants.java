@@ -36,6 +36,7 @@ public class AuthenticatorConstants {
     public static final long DEFAULT_EMAIL_OTP_VALIDITY_IN_MILLIS = 300000;
     public static final int DEFAULT_OTP_LENGTH = 6;
     public static final String DEFAULT_EMAIL_MASKING_REGEX = "(?<=.{3}).(?=[^@]*?@)";
+    public static final String EMAIL_NOTIFICATION_TEMPLATE_TYPE = "notificationTemplate";
 
     public static final String USERNAME_PARAM = "username.param";
     public static final String CODE_PARAM = "code.param";
