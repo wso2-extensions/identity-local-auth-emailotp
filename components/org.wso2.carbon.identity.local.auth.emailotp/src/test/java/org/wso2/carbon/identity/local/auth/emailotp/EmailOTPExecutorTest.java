@@ -29,12 +29,11 @@ import org.wso2.carbon.identity.central.log.mgt.utils.LoggerUtils;
 import org.wso2.carbon.identity.event.IdentityEventConstants;
 import org.wso2.carbon.identity.event.event.Event;
 import org.wso2.carbon.identity.event.handler.notification.NotificationConstants;
+import org.wso2.carbon.identity.flow.execution.engine.model.ExecutorResponse;
+import org.wso2.carbon.identity.flow.execution.engine.model.FlowExecutionContext;
+import org.wso2.carbon.identity.flow.execution.engine.model.FlowUser;
 import org.wso2.carbon.identity.local.auth.emailotp.constant.ExecutorConstants;
-import org.wso2.carbon.identity.local.auth.emailotp.internal.AuthenticatorDataHolder;
 import org.wso2.carbon.identity.local.auth.emailotp.util.CommonUtils;
-import org.wso2.carbon.identity.user.registration.engine.model.ExecutorResponse;
-import org.wso2.carbon.identity.user.registration.engine.model.RegisteringUser;
-import org.wso2.carbon.identity.user.registration.engine.model.RegistrationContext;
 
 import java.util.List;
 
@@ -54,17 +53,16 @@ public class EmailOTPExecutorTest {
     public static final String OTP_CODE = "123456";
     public static final String TEST_USER_EMAIL = "test@wso2.com";
     private EmailOTPExecutor emailOTPExecutor;
-    private RegistrationContext registrationContext;
+    private FlowExecutionContext flowExecutionContext;
 
     private MockedStatic<CommonUtils> commonUtilsMockedStatic;
     private MockedStatic<LoggerUtils> loggerUtilsMockedStatic;
-    private MockedStatic<AuthenticatorDataHolder> authenticatorDataHolderMockedStatic;
 
     @BeforeMethod
     public void setUp() {
 
         emailOTPExecutor = new EmailOTPExecutor();
-        registrationContext = mock(RegistrationContext.class);
+        flowExecutionContext = mock(FlowExecutionContext.class);
 
         commonUtilsMockedStatic = mockStatic(CommonUtils.class);
         loggerUtilsMockedStatic = mockStatic(LoggerUtils.class);
@@ -95,18 +93,18 @@ public class EmailOTPExecutorTest {
     @Test
     public void testGetSendOTPEventInitialOTP() {
 
-        when(registrationContext.getTenantDomain()).thenReturn(SUPER_TENANT);
-        RegisteringUser registeringUser = mock(RegisteringUser.class);
-        when(registrationContext.getRegisteringUser()).thenReturn(registeringUser);
-        when(registeringUser.getUsername()).thenReturn("testUser");
-        when(registeringUser.getClaim(EMAIL_ADDRESS_CLAIM)).thenReturn(TEST_USER_EMAIL);
+        when(flowExecutionContext.getTenantDomain()).thenReturn(SUPER_TENANT);
+        FlowUser flowUser = mock(FlowUser.class);
+        when(flowExecutionContext.getFlowUser()).thenReturn(flowUser);
+        when(flowUser.getUsername()).thenReturn("testUser");
+        when(flowUser.getClaim(EMAIL_ADDRESS_CLAIM)).thenReturn(TEST_USER_EMAIL);
         OTP otp = mock(OTP.class);
         when(otp.getValue()).thenReturn(OTP_CODE);
         when(otp.getGeneratedTimeInMillis()).thenReturn(System.currentTimeMillis());
         when(otp.getExpiryTimeInMillis()).thenReturn(System.currentTimeMillis() + 60000);
 
         Event event = emailOTPExecutor.getSendOTPEvent(OTPExecutorConstants.OTPScenarios.INITIAL_OTP,
-                otp, registrationContext);
+                otp, flowExecutionContext);
         Assert.assertNotNull(event);
 
         Assert.assertEquals(event.getEventName(), IdentityEventConstants.Event.TRIGGER_NOTIFICATION);
@@ -120,18 +118,18 @@ public class EmailOTPExecutorTest {
     @Test
     public void testGetSendOTPEventResendOTP() {
 
-        when(registrationContext.getTenantDomain()).thenReturn(SUPER_TENANT);
-        RegisteringUser registeringUser = mock(RegisteringUser.class);
-        when(registrationContext.getRegisteringUser()).thenReturn(registeringUser);
-        when(registeringUser.getUsername()).thenReturn("testUser");
-        when(registeringUser.getClaim(EMAIL_ADDRESS_CLAIM)).thenReturn(TEST_USER_EMAIL);
+        when(flowExecutionContext.getTenantDomain()).thenReturn(SUPER_TENANT);
+        FlowUser flowUser = mock(FlowUser.class);
+        when(flowExecutionContext.getFlowUser()).thenReturn(flowUser);
+        when(flowUser.getUsername()).thenReturn("testUser");
+        when(flowUser.getClaim(EMAIL_ADDRESS_CLAIM)).thenReturn(TEST_USER_EMAIL);
         OTP otp = mock(OTP.class);
         when(otp.getValue()).thenReturn(OTP_CODE);
         when(otp.getGeneratedTimeInMillis()).thenReturn(System.currentTimeMillis());
         when(otp.getExpiryTimeInMillis()).thenReturn(System.currentTimeMillis() + 60000);
 
         Event event = emailOTPExecutor.getSendOTPEvent(OTPExecutorConstants.OTPScenarios.RESEND_OTP,
-                otp, registrationContext);
+                otp, flowExecutionContext);
         Assert.assertNotNull(event);
 
         Assert.assertEquals(event.getEventName(), IdentityEventConstants.Event.TRIGGER_NOTIFICATION);
@@ -146,10 +144,10 @@ public class EmailOTPExecutorTest {
     public void testHandleClaimUpdate() {
 
         ExecutorResponse executorResponse = new ExecutorResponse();
-        RegisteringUser registeringUser = mock(RegisteringUser.class);
-        when(registrationContext.getRegisteringUser()).thenReturn(registeringUser);
-        when(registeringUser.getClaim(EMAIL_ADDRESS_CLAIM)).thenReturn(TEST_USER_EMAIL);
-        emailOTPExecutor.handleClaimUpdate(registrationContext, executorResponse);
+        FlowUser flowUser = mock(FlowUser.class);
+        when(flowExecutionContext.getFlowUser()).thenReturn(flowUser);
+        when(flowUser.getClaim(EMAIL_ADDRESS_CLAIM)).thenReturn(TEST_USER_EMAIL);
+        emailOTPExecutor.handleClaimUpdate(flowExecutionContext, executorResponse);
         Assert.assertEquals(executorResponse.getUpdatedUserClaims().get(ExecutorConstants.EMAIL_VERIFIED_CLAIM_URI),
                 true);
     }

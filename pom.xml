@@ -83,7 +83,7 @@
             </dependency>
             <dependency>
                 <groupId>org.wso2.carbon.identity.framework</groupId>
-                <artifactId>org.wso2.carbon.identity.user.registration.engine</artifactId>
+                <artifactId>org.wso2.carbon.identity.flow.execution.engine</artifactId>
                 <version>${carbon.identity.framework.version}</version>
             </dependency>
             <dependency>
@@ -322,12 +322,12 @@
         <identity.auth.otp.commons.version.range>[1.0.0, 2.0.0)</identity.auth.otp.commons.version.range>
 
         <carbon.kernel.version>4.9.10</carbon.kernel.version>
-        <carbon.identity.framework.version>7.8.55</carbon.identity.framework.version>
+        <carbon.identity.framework.version>7.8.215</carbon.identity.framework.version>
         <carbon.identity.governance.version>1.8.40</carbon.identity.governance.version>
         <carbon.identity.handler.event.account.lock.version>1.8.2</carbon.identity.handler.event.account.lock.version>
         <carbon.extension.identity.helper.version>1.0.12</carbon.extension.identity.helper.version>
         <carbon.identity.event.handler.notification.version>1.9.45</carbon.identity.event.handler.notification.version>
-        <identity.auth.otp.commons.version>1.0.11</identity.auth.otp.commons.version>
+        <identity.auth.otp.commons.version>1.0.12-SNAPSHOT</identity.auth.otp.commons.version>
         <owasp.encoder.version>1.2.0.wso2v1</owasp.encoder.version>
         <mockito-inline.version>3.8.0</mockito-inline.version>
 

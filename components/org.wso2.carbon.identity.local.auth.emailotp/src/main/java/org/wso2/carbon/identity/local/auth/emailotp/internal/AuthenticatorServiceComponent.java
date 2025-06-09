@@ -31,13 +31,13 @@ import org.osgi.service.component.annotations.ReferencePolicy;
 import org.wso2.carbon.identity.application.authentication.framework.ApplicationAuthenticator;
 import org.wso2.carbon.identity.claim.metadata.mgt.ClaimMetadataManagementService;
 import org.wso2.carbon.identity.event.services.IdentityEventService;
+import org.wso2.carbon.identity.flow.execution.engine.graph.Executor;
 import org.wso2.carbon.identity.governance.IdentityGovernanceService;
 import org.wso2.carbon.identity.governance.common.IdentityConnectorConfig;
 import org.wso2.carbon.identity.handler.event.account.lock.service.AccountLockService;
 import org.wso2.carbon.identity.local.auth.emailotp.EmailOTPAuthenticator;
 import org.wso2.carbon.identity.local.auth.emailotp.EmailOTPExecutor;
 import org.wso2.carbon.identity.local.auth.emailotp.connector.EmailOTPAuthenticatorConfigImpl;
-import org.wso2.carbon.identity.user.registration.engine.graph.Executor;
 import org.wso2.carbon.idp.mgt.IdpManager;
 import org.wso2.carbon.user.core.service.RealmService;
 

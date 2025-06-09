@@ -26,13 +26,13 @@ import org.wso2.carbon.identity.central.log.mgt.utils.LoggerUtils;
 import org.wso2.carbon.identity.event.IdentityEventConstants;
 import org.wso2.carbon.identity.event.event.Event;
 import org.wso2.carbon.identity.event.handler.notification.NotificationConstants;
+import org.wso2.carbon.identity.flow.execution.engine.exception.FlowEngineException;
+import org.wso2.carbon.identity.flow.execution.engine.model.ExecutorResponse;
+import org.wso2.carbon.identity.flow.execution.engine.model.FlowExecutionContext;
 import org.wso2.carbon.identity.governance.IdentityGovernanceException;
 import org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants;
 import org.wso2.carbon.identity.local.auth.emailotp.constant.ExecutorConstants;
 import org.wso2.carbon.identity.local.auth.emailotp.util.CommonUtils;
-import org.wso2.carbon.identity.user.registration.engine.exception.RegistrationEngineException;
-import org.wso2.carbon.identity.user.registration.engine.model.ExecutorResponse;
-import org.wso2.carbon.identity.user.registration.engine.model.RegistrationContext;
 import org.wso2.carbon.utils.DiagnosticLog;
 
 import java.util.ArrayList;
@@ -66,10 +66,16 @@ public class EmailOTPExecutor extends AbstractOTPExecutor {
     }
 
     @Override
-    protected Event getSendOTPEvent(OTPExecutorConstants.OTPScenarios scenario, OTP otp, RegistrationContext context) {
+    public ExecutorResponse rollback(FlowExecutionContext flowExecutionContext) throws FlowEngineException {
+
+        return null;
+    }
+
+    @Override
+    protected Event getSendOTPEvent(OTPExecutorConstants.OTPScenarios scenario, OTP otp, FlowExecutionContext context) {
 
         String tenantDomain = context.getTenantDomain();
-        String email = String.valueOf(context.getRegisteringUser().getClaim(EMAIL_ADDRESS_CLAIM));
+        String email = String.valueOf(context.getFlowUser().getClaim(EMAIL_ADDRESS_CLAIM));
 
         Map<String, Object> eventProperties = new HashMap<>();
         eventProperties.put(CODE, otp.getValue());
@@ -93,7 +99,7 @@ public class EmailOTPExecutor extends AbstractOTPExecutor {
     }
 
     @Override
-    protected long getOTPValidityPeriod(String tenantDomain) throws RegistrationEngineException {
+    protected long getOTPValidityPeriod(String tenantDomain) throws FlowEngineException {
 
         try {
             return CommonUtils.getOtpValidityPeriod(tenantDomain);
@@ -103,29 +109,29 @@ public class EmailOTPExecutor extends AbstractOTPExecutor {
     }
 
     @Override
-    protected int getMaxRetryCount(RegistrationContext registrationContext) {
+    protected int getMaxRetryCount(FlowExecutionContext flowExecutionContext) {
 
         return 3;
     }
 
     @Override
-    protected int getMaxResendCount(RegistrationContext registrationContext) {
+    protected int getMaxResendCount(FlowExecutionContext flowExecutionContext) {
 
         return 3;
     }
 
     @Override
-    protected void handleClaimUpdate(RegistrationContext registrationContext, ExecutorResponse executorResponse) {
+    protected void handleClaimUpdate(FlowExecutionContext flowExecutionContext, ExecutorResponse executorResponse) {
 
         Map<String, Object> updatedClaims = new HashMap<>();
         updatedClaims.put(ExecutorConstants.EMAIL_VERIFIED_CLAIM_URI, true);
         updatedClaims.put(ExecutorConstants.VERIFIED_EMAIL_ADDRESSES_CLAIM_URI,
-                registrationContext.getRegisteringUser().getClaim(EMAIL_ADDRESS_CLAIM));
+                flowExecutionContext.getFlowUser().getClaim(EMAIL_ADDRESS_CLAIM));
         executorResponse.setUpdatedUserClaims(updatedClaims);
     }
 
     @Override
-    protected int getOTPLength(String tenantDomain) throws RegistrationEngineException {
+    protected int getOTPLength(String tenantDomain) throws FlowEngineException {
 
         try {
             return CommonUtils.getOTPLength(tenantDomain);
@@ -135,7 +141,7 @@ public class EmailOTPExecutor extends AbstractOTPExecutor {
     }
 
     @Override
-    protected String getOTPCharset(String tenantDomain) throws RegistrationEngineException {
+    protected String getOTPCharset(String tenantDomain) throws FlowEngineException {
 
         try {
             return CommonUtils.getOTPCharset(tenantDomain);
