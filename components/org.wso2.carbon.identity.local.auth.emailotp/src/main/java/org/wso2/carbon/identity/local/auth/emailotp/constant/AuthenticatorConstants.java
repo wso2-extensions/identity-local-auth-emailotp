@@ -49,6 +49,7 @@ public class AuthenticatorConstants {
 
     public static final String RESEND = "resendCode";
     public static final String CODE = "OTPCode";
+    public static final String CONFIRMATION_CODE = "confirmation-code";
     public static final String CODE_LOWERCASE = "OTPcode";
     public static final String DISPLAY_CODE = "Code";
     public static final String OTP_TOKEN = "otpToken";

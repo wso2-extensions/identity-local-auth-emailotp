@@ -22,6 +22,7 @@ import org.mockito.MockedStatic;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import org.wso2.carbon.identity.auth.otp.core.constant.OTPExecutorConstants;
 import org.wso2.carbon.identity.auth.otp.core.model.OTP;
@@ -32,9 +33,12 @@ import org.wso2.carbon.identity.event.handler.notification.NotificationConstants
 import org.wso2.carbon.identity.flow.execution.engine.model.ExecutorResponse;
 import org.wso2.carbon.identity.flow.execution.engine.model.FlowExecutionContext;
 import org.wso2.carbon.identity.flow.execution.engine.model.FlowUser;
+import org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants;
 import org.wso2.carbon.identity.local.auth.emailotp.constant.ExecutorConstants;
 import org.wso2.carbon.identity.local.auth.emailotp.util.CommonUtils;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.List;
 
 import static org.mockito.Mockito.mock;
@@ -93,6 +97,7 @@ public class EmailOTPExecutorTest {
     @Test
     public void testGetSendOTPEventInitialOTP() {
 
+        when(flowExecutionContext.getFlowType()).thenReturn("REGISTRATION");
         when(flowExecutionContext.getTenantDomain()).thenReturn(SUPER_TENANT);
         FlowUser flowUser = mock(FlowUser.class);
         when(flowExecutionContext.getFlowUser()).thenReturn(flowUser);
@@ -118,6 +123,7 @@ public class EmailOTPExecutorTest {
     @Test
     public void testGetSendOTPEventResendOTP() {
 
+        when(flowExecutionContext.getFlowType()).thenReturn("REGISTRATION");
         when(flowExecutionContext.getTenantDomain()).thenReturn(SUPER_TENANT);
         FlowUser flowUser = mock(FlowUser.class);
         when(flowExecutionContext.getFlowUser()).thenReturn(flowUser);
@@ -150,5 +156,38 @@ public class EmailOTPExecutorTest {
         emailOTPExecutor.handleClaimUpdate(flowExecutionContext, executorResponse);
         Assert.assertEquals(executorResponse.getUpdatedUserClaims().get(ExecutorConstants.EMAIL_VERIFIED_CLAIM_URI),
                 true);
+    }
+
+    @DataProvider(name = "flowTypeData")
+    public Object[][] flowTypeData() {
+        return new Object[][] {
+                { "REGISTRATION", CODE, ExecutorConstants.EMAIL_OTP_VERIFY_TEMPLATE },
+                { "PASSWORD_RECOVERY",
+                        AuthenticatorConstants.CONFIRMATION_CODE,
+                        ExecutorConstants.EMAIL_OTP_PASSWORD_RESET_TEMPLATE },
+                { "UNKNOWN_TYPE", null, null }
+        };
+    }
+
+    @Test(dataProvider = "flowTypeData")
+    public void testResolveFlowTypeProperties(String flowType, Object expectedCodeKey,
+                                              Object expectedTemplateType) throws Exception {
+
+        EmailOTPExecutor executor = new EmailOTPExecutor();
+        Method method = EmailOTPExecutor.class.getDeclaredMethod("resolveFlowTypeProperties",
+                FlowExecutionContext.class);
+        method.setAccessible(true);
+
+        FlowExecutionContext context = mock(FlowExecutionContext.class);
+        when(context.getFlowType()).thenReturn(flowType);
+
+        Object props = method.invoke(executor, context);
+        Field codeKeyField = props.getClass().getDeclaredField("codeKey");
+        Field templateTypeField = props.getClass().getDeclaredField("templateType");
+        codeKeyField.setAccessible(true);
+        templateTypeField.setAccessible(true);
+
+        Assert.assertEquals(codeKeyField.get(props), expectedCodeKey);
+        Assert.assertEquals(templateTypeField.get(props), expectedTemplateType);
     }
 }
