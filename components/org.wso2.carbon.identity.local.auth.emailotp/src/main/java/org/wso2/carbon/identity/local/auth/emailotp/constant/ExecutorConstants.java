@@ -29,6 +29,7 @@ public class ExecutorConstants {
 
     public static final String EMAIL_OTP_EXECUTOR_NAME = "EmailOTPExecutor";
     public static final String EMAIL_OTP_VERIFY_TEMPLATE = "EmailOTPVerification";
+    public static final String EMAIL_OTP_PASSWORD_RESET_TEMPLATE = "passwordResetOTP";
     public static final String EMAIL_VERIFIED_CLAIM_URI = "http://wso2.org/claims/identity/emailVerified";
     public static final String VERIFIED_EMAIL_ADDRESSES_CLAIM_URI = "http://wso2.org/claims/verifiedEmailAddresses";
 }

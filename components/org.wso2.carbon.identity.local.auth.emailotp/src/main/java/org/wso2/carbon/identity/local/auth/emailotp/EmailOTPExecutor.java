@@ -43,6 +43,7 @@ import java.util.Map;
 import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.EMAIL_ADDRESS_CLAIM;
 import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.USERNAME_CLAIM;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.CODE;
+import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.CONFIRMATION_CODE;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.LogConstants.EMAIL_OTP_SERVICE;
 
 /**
@@ -74,13 +75,13 @@ public class EmailOTPExecutor extends AbstractOTPExecutor {
     @Override
     protected Event getSendOTPEvent(OTPExecutorConstants.OTPScenarios scenario, OTP otp, FlowExecutionContext context) {
 
+        FlowTypeProperties flowProperties = resolveFlowTypeProperties(context);
         String tenantDomain = context.getTenantDomain();
         String email = String.valueOf(context.getFlowUser().getClaim(EMAIL_ADDRESS_CLAIM));
 
         Map<String, Object> eventProperties = new HashMap<>();
-        eventProperties.put(CODE, otp.getValue());
-        eventProperties.put(NotificationConstants.EmailNotification.EMAIL_TEMPLATE_TYPE,
-                ExecutorConstants.EMAIL_OTP_VERIFY_TEMPLATE);
+        eventProperties.put(flowProperties.codeKey, otp.getValue());
+        eventProperties.put(NotificationConstants.EmailNotification.EMAIL_TEMPLATE_TYPE, flowProperties.templateType);
         eventProperties.put(NotificationConstants.ARBITRARY_SEND_TO, email);
         eventProperties.put(NotificationConstants.TENANT_DOMAIN, tenantDomain);
 
@@ -166,5 +167,28 @@ public class EmailOTPExecutor extends AbstractOTPExecutor {
     protected String getDiagnosticLogComponentId() {
 
         return EMAIL_OTP_SERVICE;
+    }
+
+    private FlowTypeProperties resolveFlowTypeProperties(FlowExecutionContext flowExecutionContext) {
+
+        switch (flowExecutionContext.getFlowType()) {
+            case "REGISTRATION":
+                return new FlowTypeProperties(CODE, ExecutorConstants.EMAIL_OTP_VERIFY_TEMPLATE);
+            case "PASSWORD_RECOVERY":
+                return new FlowTypeProperties(CONFIRMATION_CODE, ExecutorConstants.EMAIL_OTP_PASSWORD_RESET_TEMPLATE);
+            default:
+                return new FlowTypeProperties(null, null);
+        }
+    }
+
+    private static class FlowTypeProperties {
+
+        final String codeKey;
+        final String templateType;
+
+        FlowTypeProperties(String codeKey, String templateType) {
+            this.codeKey = codeKey;
+            this.templateType = templateType;
+        }
     }
 }
