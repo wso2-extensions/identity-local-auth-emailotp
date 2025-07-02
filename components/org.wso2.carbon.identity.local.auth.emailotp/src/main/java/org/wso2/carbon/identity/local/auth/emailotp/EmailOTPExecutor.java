@@ -23,6 +23,7 @@ import org.wso2.carbon.identity.auth.otp.core.constant.OTPExecutorConstants;
 import org.wso2.carbon.identity.auth.otp.core.model.OTP;
 import org.wso2.carbon.identity.central.log.mgt.utils.LogConstants;
 import org.wso2.carbon.identity.central.log.mgt.utils.LoggerUtils;
+import org.wso2.carbon.identity.core.context.model.Flow;
 import org.wso2.carbon.identity.event.IdentityEventConstants;
 import org.wso2.carbon.identity.event.event.Event;
 import org.wso2.carbon.identity.event.handler.notification.NotificationConstants;
@@ -53,6 +54,7 @@ public class EmailOTPExecutor extends AbstractOTPExecutor {
 
     private static final String PASSWORD_RECOVERY = "PASSWORD_RECOVERY";
     private static final String REGISTRATION = "REGISTRATION";
+    private static final String USER_REGISTRATION =  Flow.Name.USER_REGISTRATION.toString();
 
     @Override
     public String getName() {
@@ -174,13 +176,14 @@ public class EmailOTPExecutor extends AbstractOTPExecutor {
 
     private FlowTypeProperties resolveFlowTypeProperties(FlowExecutionContext flowExecutionContext) {
 
-        switch (flowExecutionContext.getFlowType()) {
-            case REGISTRATION:
-                return new FlowTypeProperties(CODE, ExecutorConstants.EMAIL_OTP_VERIFY_TEMPLATE);
-            case PASSWORD_RECOVERY:
-                return new FlowTypeProperties(CONFIRMATION_CODE, ExecutorConstants.EMAIL_OTP_PASSWORD_RESET_TEMPLATE);
-            default:
-                return new FlowTypeProperties(null, null);
+        String flowType = flowExecutionContext.getFlowType();
+        if (Flow.Name.USER_REGISTRATION.toString().equalsIgnoreCase(flowType) ||
+                REGISTRATION.equalsIgnoreCase(flowType)) {
+            return new FlowTypeProperties(CODE, ExecutorConstants.EMAIL_OTP_VERIFY_TEMPLATE);
+        } else if (PASSWORD_RECOVERY.equalsIgnoreCase(flowType)) {
+            return new FlowTypeProperties(CONFIRMATION_CODE, ExecutorConstants.EMAIL_OTP_PASSWORD_RESET_TEMPLATE);
+        } else {
+            return new FlowTypeProperties(null, null);
         }
     }
 
