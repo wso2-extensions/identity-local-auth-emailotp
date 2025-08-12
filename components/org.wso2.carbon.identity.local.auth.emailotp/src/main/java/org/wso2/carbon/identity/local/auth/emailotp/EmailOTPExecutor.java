@@ -62,6 +62,12 @@ public class EmailOTPExecutor extends AbstractOTPExecutor {
     }
 
     @Override
+    public String getAMRValue() {
+
+        return AuthenticatorConstants.EMAIL_OTP_AUTHENTICATOR_NAME;
+    }
+
+    @Override
     public List<String> getInitiationData() {
 
         List<String> initiationData = new ArrayList<>();
