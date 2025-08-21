@@ -46,7 +46,8 @@ import org.wso2.carbon.identity.application.common.model.ClaimConfig;
 import org.wso2.carbon.identity.application.common.model.ClaimMapping;
 import org.wso2.carbon.identity.application.common.model.IdentityProvider;
 import org.wso2.carbon.identity.application.common.model.JustInTimeProvisioningConfig;
-import org.wso2.carbon.identity.captcha.connector.recaptcha.EmailOTPCaptchaConnector;
+import org.wso2.carbon.identity.captcha.connector.recaptcha.AbstractOTPCaptchaConnector;
+import org.wso2.carbon.identity.captcha.connector.recaptcha.LocalEmailOTPCaptchaConnector;
 import org.wso2.carbon.identity.captcha.exception.CaptchaException;
 import org.wso2.carbon.identity.central.log.mgt.utils.LogConstants;
 import org.wso2.carbon.identity.central.log.mgt.utils.LoggerUtils;
@@ -1635,10 +1636,10 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
     private String getCaptchaParams(HttpServletRequest request, AuthenticationContext context) {
 
         String captchaParams = StringUtils.EMPTY;
-        EmailOTPCaptchaConnector emailOTPCaptchaConnector = new EmailOTPCaptchaConnector();
+        AbstractOTPCaptchaConnector emailOTPCaptchaConnector = new LocalEmailOTPCaptchaConnector();
         emailOTPCaptchaConnector.init(AuthenticatorDataHolder.getIdentityGovernanceService());
         try {
-            if (emailOTPCaptchaConnector.isEmailRecaptchaEnabled(request) && isEmailOTPAsFirstFactor(context)) {
+            if (emailOTPCaptchaConnector.isRecaptchaEnabled(request) && isEmailOTPAsFirstFactor(context)) {
                 captchaParams = "&reCaptcha=true";
             }
         } catch (CaptchaException e) {
