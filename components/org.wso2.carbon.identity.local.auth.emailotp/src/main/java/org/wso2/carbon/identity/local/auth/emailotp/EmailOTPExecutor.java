@@ -77,7 +77,7 @@ public class EmailOTPExecutor extends AbstractOTPExecutor {
     }
 
     @Override
-    public ExecutorResponse rollback(FlowExecutionContext flowExecutionContext) throws FlowEngineException {
+    public ExecutorResponse rollback(FlowExecutionContext flowExecutionContext) {
 
         return null;
     }
