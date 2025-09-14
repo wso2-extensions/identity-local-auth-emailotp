@@ -50,6 +50,7 @@ import org.wso2.carbon.identity.captcha.internal.CaptchaDataHolder;
 import org.wso2.carbon.identity.captcha.util.CaptchaUtil;
 import org.wso2.carbon.identity.central.log.mgt.utils.LoggerUtils;
 import org.wso2.carbon.identity.claim.metadata.mgt.ClaimMetadataManagementService;
+import org.wso2.carbon.identity.core.util.IdentityConfigParser;
 import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
 import org.wso2.carbon.identity.event.event.Event;
 import org.wso2.carbon.identity.event.services.IdentityEventService;
@@ -95,6 +96,7 @@ import static org.wso2.carbon.identity.application.authentication.framework.util
 import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.USERNAME_CLAIM;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.Claims.LOCALE_CLAIM;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.EMAIL_OTP_AUTHENTICATOR_NAME;
+import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.HIDE_USER_EXISTENCE_CONFIG;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.IS_IDF_INITIATED_FROM_AUTHENTICATOR;
 
 /**
@@ -109,6 +111,7 @@ public class EmailOTPAuthenticatorTest {
     private ConfigurationFacade configurationFacade;
     private MultiAttributeLoginService multiAttributeLoginService;
     private FileBasedConfigurationBuilder fileBasedConfigurationBuilder;
+    private IdentityConfigParser identityConfigParser;
     private FrameworkServiceDataHolder frameworkServiceDataHolder;
     private RealmService realmService;
     private UserRealm userRealm;
@@ -122,6 +125,7 @@ public class EmailOTPAuthenticatorTest {
     private AuthenticatedUser authenticatedUser;
 
     private MockedStatic<ConfigurationFacade> staticConfigurationFacade;
+    private MockedStatic<IdentityConfigParser> staticIdentityConfigParser;
     private MockedStatic<FrameworkUtils> frameworkUtils;
     private MockedStatic<IdentityTenantUtil> identityTenantUtil;
     private MockedStatic<FederatedAuthenticatorUtil> federatedAuthenticatorUtil;
@@ -155,6 +159,7 @@ public class EmailOTPAuthenticatorTest {
         userRealm = mock(UserRealm.class);
         userStoreManager = mock(AbstractUserStoreManager.class);
         fileBasedConfigurationBuilder = mock(FileBasedConfigurationBuilder.class);
+        identityConfigParser = mock(IdentityConfigParser.class);
         frameworkServiceDataHolder = mock(FrameworkServiceDataHolder.class);
         identityEventService = mock(IdentityEventService.class);
         claimMetadataManagementService = mock(ClaimMetadataManagementService.class);
@@ -165,6 +170,7 @@ public class EmailOTPAuthenticatorTest {
         authenticatedUser = mock(AuthenticatedUser.class);
 
         staticConfigurationFacade = mockStatic(ConfigurationFacade.class);
+        staticIdentityConfigParser = mockStatic(IdentityConfigParser.class);
         frameworkUtils = mockStatic(FrameworkUtils.class);
         identityTenantUtil = mockStatic(IdentityTenantUtil.class);
         federatedAuthenticatorUtil = mockStatic(FederatedAuthenticatorUtil.class);
@@ -395,6 +401,10 @@ public class EmailOTPAuthenticatorTest {
         when(fileBasedConfigurationBuilder.getAuthenticatorBean(anyString())).thenReturn(authenticatorConfig);
         userCoreUtil.when(UserCoreUtil::getDomainFromThreadLocal).thenReturn(DEFAULT_USER_STORE);
         mockMultiAttributeLoginService();
+        when(IdentityConfigParser.getInstance()).thenReturn(identityConfigParser);
+        Map<String, Object> configs = new HashMap<>();
+        configs.put(HIDE_USER_EXISTENCE_CONFIG, "true");
+        when(identityConfigParser.getConfiguration()).thenReturn(configs);
         status = emailOTPAuthenticator.process(httpServletRequest, httpServletResponse, context);
         assertEquals(status, AuthenticatorFlowStatus.INCOMPLETE);
         Assert.assertTrue((Boolean.parseBoolean(String.valueOf(context.getProperty(
@@ -552,6 +562,10 @@ public class EmailOTPAuthenticatorTest {
         when(userStoreManager.getUserClaimValues(any(), any(), any())).thenReturn(claimMap);
         when(FileBasedConfigurationBuilder.getInstance()).thenReturn(fileBasedConfigurationBuilder);
         when(CaptchaDataHolder.getInstance()).thenReturn(captchaDataHolder);
+        when(IdentityConfigParser.getInstance()).thenReturn(identityConfigParser);
+        Map<String, Object> configs = new HashMap<>();
+        configs.put(HIDE_USER_EXISTENCE_CONFIG, "false");
+        when(identityConfigParser.getConfiguration()).thenReturn(configs);
 
         emailOTPAuthenticator.process(httpServletRequest, httpServletResponse, context);
 
@@ -611,6 +625,7 @@ public class EmailOTPAuthenticatorTest {
     public void cleanUp() {
 
         staticConfigurationFacade.close();
+        staticIdentityConfigParser.close();
         frameworkUtils.close();
         identityTenantUtil.close();
         federatedAuthenticatorUtil.close();

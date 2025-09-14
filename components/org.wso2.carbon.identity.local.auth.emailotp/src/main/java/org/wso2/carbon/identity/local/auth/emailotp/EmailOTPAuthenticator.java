@@ -52,6 +52,7 @@ import org.wso2.carbon.identity.captcha.exception.CaptchaException;
 import org.wso2.carbon.identity.central.log.mgt.utils.LogConstants;
 import org.wso2.carbon.identity.central.log.mgt.utils.LoggerUtils;
 import org.wso2.carbon.identity.claim.metadata.mgt.exception.ClaimMetadataException;
+import org.wso2.carbon.identity.core.util.IdentityConfigParser;
 import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
 import org.wso2.carbon.identity.core.util.IdentityUtil;
 import org.wso2.carbon.identity.event.IdentityEventConstants;
@@ -103,6 +104,7 @@ import static org.wso2.carbon.identity.local.auth.emailotp.constant.Authenticato
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.CODE_LOWERCASE;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.DISPLAY_CODE;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.EMAIL_OTP_AUTHENTICATOR_NAME;
+import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.HIDE_USER_EXISTENCE_CONFIG;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.LogConstants.ActionIDs.INITIATE_EMAIL_OTP_REQUEST;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.LogConstants.ActionIDs.PROCESS_AUTHENTICATION_RESPONSE;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.LogConstants.EMAIL_OTP_SERVICE;
@@ -802,12 +804,13 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             String emailOTPLoginPage = AuthenticatorUtils.getEmailOTPLoginPageUrl(context);
             String url = getRedirectURL(emailOTPLoginPage, queryParams, multiOptionURI);
             // Set the email address in the UI by masking it.
-            if (StringUtils.isNotBlank(username) && StringUtils.isNotBlank(email)
-                    && !Boolean.parseBoolean(
-                    String.valueOf(context.getParameter(
-                            AuthenticatorConstants.IS_IDF_INITIATED_FROM_AUTHENTICATOR)))) {
-                url = url + AuthenticatorConstants.SCREEN_VALUE_QUERY_PARAM +
-                        getMaskedEmailAddress(username, email, tenantDomain, context);
+            if (StringUtils.isNotBlank(username) && StringUtils.isNotBlank(email)) {
+                boolean hideUserExistence = Boolean.parseBoolean((String) IdentityConfigParser.getInstance()
+                        .getConfiguration().get(HIDE_USER_EXISTENCE_CONFIG));
+                if (!isEmailOTPAsFirstFactor(context) || !hideUserExistence) {
+                    url = url + AuthenticatorConstants.SCREEN_VALUE_QUERY_PARAM +
+                            getMaskedEmailAddress(username, email, tenantDomain, context);
+                }
             }
             if (Boolean.parseBoolean(getAuthenticatorConfig().getParameterMap()
                     .get(AuthenticatorConstants.CONF_SHOW_AUTH_FAILURE_REASON))) {

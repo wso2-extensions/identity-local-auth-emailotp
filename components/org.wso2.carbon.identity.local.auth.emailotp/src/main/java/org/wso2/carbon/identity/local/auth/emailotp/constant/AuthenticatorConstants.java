@@ -42,6 +42,7 @@ public class AuthenticatorConstants {
     public static final String USER_PROMPT = "USER_PROMPT";
     public static final String AUTHENTICATOR_EMAIL_OTP = "authenticator.email.otp";
     public static final String PROPERTY_ACCOUNT_LOCK_ON_FAILURE = "account.lock.handler.enable";
+    public static final String HIDE_USER_EXISTENCE_CONFIG = "LocalAuthenticators.HideUserExistenceOnAuthFlow";
 
     // OTP generation.
     public static final String EMAIL_OTP_UPPER_CASE_ALPHABET_CHAR_SET = "KIGXHOYSPRWCEFMVUQLZDNABJT";
