@@ -730,6 +730,12 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         }
         metaProperties.put(CODE, otp);
         metaProperties.put(EMAIL_TEMPLATE_TYPE, AuthenticatorConstants.EMAIL_OTP_TEMPLATE_NAME);
+        Map<String, String> emailOtpAuthenticatorParams = getRuntimeParams(context);
+        String emailTemplateType = emailOtpAuthenticatorParams.get(
+                AuthenticatorConstants.EMAIL_NOTIFICATION_TEMPLATE_TYPE);
+        if (StringUtils.isNotBlank(emailTemplateType)) {
+            metaProperties.put(EMAIL_TEMPLATE_TYPE, emailTemplateType);
+        }
         metaProperties.put(ARBITRARY_SEND_TO, email);
         String maskedEmailAddress = getMaskedEmailAddress(authenticatedUser.getUserName(), email, tenantDomain,
                 context);
