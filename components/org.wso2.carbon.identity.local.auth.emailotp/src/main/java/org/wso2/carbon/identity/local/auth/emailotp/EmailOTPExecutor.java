@@ -18,6 +18,7 @@
 
 package org.wso2.carbon.identity.local.auth.emailotp;
 
+import org.apache.commons.lang.StringUtils;
 import org.wso2.carbon.identity.auth.otp.core.AbstractOTPExecutor;
 import org.wso2.carbon.identity.auth.otp.core.constant.OTPExecutorConstants;
 import org.wso2.carbon.identity.auth.otp.core.model.OTP;
@@ -177,6 +178,12 @@ public class EmailOTPExecutor extends AbstractOTPExecutor {
     protected String getDiagnosticLogComponentId() {
 
         return EMAIL_OTP_SERVICE;
+    }
+
+    @Override
+    protected boolean validateInitiation(FlowExecutionContext context) {
+
+        return StringUtils.isNotBlank((String) context.getFlowUser().getClaim(EMAIL_ADDRESS_CLAIM));
     }
 
     private FlowTypeProperties resolveFlowTypeProperties(FlowExecutionContext flowExecutionContext) {
