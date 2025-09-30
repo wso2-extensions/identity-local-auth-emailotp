@@ -232,12 +232,14 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
                 user = getUser(authenticatedUser, context);
             } catch (AuthenticationFailedException e) {
                 // Check if the exception is specifically about multiple users
-                if (e.getMessage() != null && e.getMessage().contains(AuthenticatorConstants.MULTIPLE_USERS_ERROR_MESSAGE)) {
+                if (e.getMessage() != null &&
+                        e.getMessage().contains(AuthenticatorConstants.MULTIPLE_USERS_ERROR_MESSAGE)) {
                     if (log.isDebugEnabled()) {
                         log.debug("Multiple users found for the provided username", e);
                     }
-                    
-                    if (isEmailOTPAsFirstFactor(context) && Boolean.parseBoolean(IdentityUtil.getProperty(HIDE_USER_EXISTENCE_CONFIG))) {
+
+                    if (isEmailOTPAsFirstFactor(context) &&
+                            Boolean.parseBoolean(IdentityUtil.getProperty(HIDE_USER_EXISTENCE_CONFIG))) {
                         redirectToEmailOTPLoginPage(null, null, context.getTenantDomain(), response, request, context);
                         return;
                     }
