@@ -386,7 +386,8 @@ public class EmailOTPAuthenticatorTest {
         context.setTenantDomain(TENANT_DOMAIN);
         configureAuthenticatorDataHolder();
 
-        when(FrameworkUtils.preprocessUsername(USERNAME, context)).thenReturn(USERNAME + "@" + TENANT_DOMAIN);
+        when(FrameworkUtils.preprocessUsernameWithContextTenantDomain(USERNAME, context)).thenReturn(
+                USERNAME + "@" + TENANT_DOMAIN);
         when(FileBasedConfigurationBuilder.getInstance()).thenReturn(fileBasedConfigurationBuilder);
         when(AuthenticatorUtils.isAccountLocked(any())).thenReturn(false);
         when(CaptchaDataHolder.getInstance()).thenReturn(captchaDataHolder);
@@ -436,7 +437,8 @@ public class EmailOTPAuthenticatorTest {
         when(userStoreManager.getSecondaryUserStoreManager(anyString())).thenReturn(userStoreManager);
         when(userStoreManager.getUserClaimValues(any(), any(), any())).thenReturn(claimMap);
         when(fileBasedConfigurationBuilder.getAuthenticatorBean(anyString())).thenReturn(authenticatorConfig);
-        when(FrameworkUtils.preprocessUsername(USERNAME, context)).thenReturn(USERNAME + "@" + TENANT_DOMAIN);
+        when(FrameworkUtils.preprocessUsernameWithContextTenantDomain(USERNAME, context)).thenReturn(
+                USERNAME + "@" + TENANT_DOMAIN);
         when(CaptchaDataHolder.getInstance()).thenReturn(captchaDataHolder);
         AuthenticatorDataHolder.setIdentityGovernanceService(identityGovernanceService);
         mockMultiAttributeLoginService();
