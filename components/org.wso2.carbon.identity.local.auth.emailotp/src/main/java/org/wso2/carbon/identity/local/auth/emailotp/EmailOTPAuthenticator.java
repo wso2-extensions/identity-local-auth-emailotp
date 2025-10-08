@@ -1607,7 +1607,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             throws AuthenticationFailedException {
 
         String username = resolveUsernameFromRequest(request);
-        username = FrameworkUtils.preprocessUsername(username, context);
+        username = FrameworkUtils.preprocessUsernameWithContextTenantDomain(username, context);
         AuthenticatedUser user = new AuthenticatedUser();
         String tenantAwareUsername = MultitenantUtils.getTenantAwareUsername(username);
         String userStoreDomain = UserCoreUtil.extractDomainFromName(username);
