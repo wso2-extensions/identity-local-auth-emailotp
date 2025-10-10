@@ -103,6 +103,8 @@ import static org.wso2.carbon.identity.handler.event.account.lock.constants.Acco
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.CODE;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.CODE_LOWERCASE;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.DISPLAY_CODE;
+import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.EMAIL_OTP_AUTHENTICATION_ENDPOINT_URL;
+import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.EMAIL_OTP_AUTHENTICATION_ERROR_PAGE_URL;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.EMAIL_OTP_AUTHENTICATOR_NAME;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.HIDE_USER_EXISTENCE_CONFIG;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.LogConstants.ActionIDs.INITIATE_EMAIL_OTP_REQUEST;
@@ -807,7 +809,8 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
                 context.getCallerSessionKey(), context.getContextIdentifier());
         String multiOptionURI = AuthenticatorUtils.getMultiOptionURIQueryParam(request);
         try {
-            String emailOTPLoginPage = AuthenticatorUtils.getEmailOTPLoginPageUrl(context);
+            String emailOTPLoginPage = AuthenticatorUtils.getEmailOTPLoginPageUrl(
+                    context, getAuthenticatorConfig().getParameterMap().get(EMAIL_OTP_AUTHENTICATION_ENDPOINT_URL));
             String url = getRedirectURL(emailOTPLoginPage, queryParams, multiOptionURI);
             // Set the email address in the UI by masking it.
             if (StringUtils.isNotBlank(username) && StringUtils.isNotBlank(email)) {
@@ -1068,7 +1071,8 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
 
         try {
             String multiOptionURI = AuthenticatorUtils.getMultiOptionURIQueryParam(request);
-            String errorPage = AuthenticatorUtils.getEmailOTPErrorPageUrl(context);
+            String errorPage = AuthenticatorUtils.getEmailOTPErrorPageUrl(context,
+                    getAuthenticatorConfig().getParameterMap().get(EMAIL_OTP_AUTHENTICATION_ERROR_PAGE_URL));
             String url = getRedirectURL(errorPage, queryParams, multiOptionURI);
             response.sendRedirect(url + retryParam);
         } catch (IOException e) {
