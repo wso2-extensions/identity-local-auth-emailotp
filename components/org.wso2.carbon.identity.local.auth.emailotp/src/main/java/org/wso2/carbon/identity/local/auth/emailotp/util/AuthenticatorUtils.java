@@ -118,6 +118,32 @@ public class AuthenticatorUtils {
     }
 
     /**
+     * Get email OTP login page URL.
+     *
+     * @param context AuthenticationContext.
+     * @param otpPageUrl Email OTP Page URL.
+     * @return URL of the OTP login page.
+     * @throws AuthenticationFailedException If an error occurred while getting the login page url.
+     */
+    public static String getEmailOTPLoginPageUrl(AuthenticationContext context, String otpPageUrl)
+            throws AuthenticationFailedException {
+
+        try {
+            if (context.getProperty(EMAIL_OTP_AUTHENTICATION_ENDPOINT_URL) != null && StringUtils.isNotBlank(
+                    String.valueOf(context.getProperty(EMAIL_OTP_AUTHENTICATION_ENDPOINT_URL)))) {
+                return buildURL(String.valueOf(
+                        context.getProperty(EMAIL_OTP_AUTHENTICATION_ENDPOINT_URL)), EMAIL_OTP_PAGE);
+            }
+            if (StringUtils.isNotBlank(otpPageUrl)) {
+                return ServiceURLBuilder.create().addPath(otpPageUrl).build().getAbsolutePublicURL();
+            }
+            return ServiceURLBuilder.create().addPath(EMAIL_OTP_PAGE).build().getAbsolutePublicURL();
+        } catch (URLBuilderException e) {
+            throw new AuthenticationFailedException("Error building email OTP login page URL", e);
+        }
+    }
+
+    /**
      * Get email OTP error page URL.
      *
      * @param context AuthenticationContext.
@@ -132,6 +158,32 @@ public class AuthenticatorUtils {
                     String.valueOf(context.getProperty(EMAIL_OTP_AUTHENTICATION_ERROR_PAGE_URL)))) {
                 return buildURL(String.valueOf(
                         context.getProperty(EMAIL_OTP_AUTHENTICATION_ERROR_PAGE_URL)), ERROR_PAGE);
+            }
+            return ServiceURLBuilder.create().addPath(ERROR_PAGE).build().getAbsolutePublicURL();
+        } catch (URLBuilderException e) {
+            throw new AuthenticationFailedException("Error building email OTP error page URL", e);
+        }
+    }
+
+    /**
+     * Get email OTP error page URL.
+     *
+     * @param context AuthenticationContext.
+     * @param errorPageUrl error page URL.
+     * @return URL of the OTP error page.
+     * @throws AuthenticationFailedException If an error occurred while getting the error page url.
+     */
+    public static String getEmailOTPErrorPageUrl(AuthenticationContext context, String errorPageUrl)
+            throws AuthenticationFailedException {
+
+        try {
+            if (context.getProperty(EMAIL_OTP_AUTHENTICATION_ERROR_PAGE_URL) != null && StringUtils.isNotBlank(
+                    String.valueOf(context.getProperty(EMAIL_OTP_AUTHENTICATION_ERROR_PAGE_URL)))) {
+                return buildURL(String.valueOf(
+                        context.getProperty(EMAIL_OTP_AUTHENTICATION_ERROR_PAGE_URL)), ERROR_PAGE);
+            }
+            if (StringUtils.isNotBlank(errorPageUrl)) {
+                return ServiceURLBuilder.create().addPath(errorPageUrl).build().getAbsolutePublicURL();
             }
             return ServiceURLBuilder.create().addPath(ERROR_PAGE).build().getAbsolutePublicURL();
         } catch (URLBuilderException e) {
