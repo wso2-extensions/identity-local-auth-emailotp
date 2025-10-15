@@ -293,10 +293,17 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             Optional<Integer> maxResendAttempts = getMaximumResendAttempts(applicationTenantDomain, context);
 
             if (maxResendAttempts.isPresent()) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Maximum resend attempts configured: " + maxResendAttempts.get());
+                }
                 int currentUserResendAttempts = context.getProperty(AuthenticatorConstants.OTP_RESEND_ATTEMPTS) != null
                         ? Integer.parseInt(context.getProperty(AuthenticatorConstants.OTP_RESEND_ATTEMPTS).
                         toString()) : 0;
                 if (currentUserResendAttempts >= maxResendAttempts.get()) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("User exceeded maximum OTP resend attempts. Current attempts: " +
+                                currentUserResendAttempts);
+                    }
                     String queryParams = FrameworkUtils.getQueryStringWithFrameworkContextId(context.getQueryParams(),
                             context.getCallerSessionKey(), context.getContextIdentifier());
                     redirectToErrorPage(request, response, context, queryParams,
