@@ -122,7 +122,6 @@ public class EmailOTPAuthenticatorConfigImpl implements IdentityConnectorConfig 
         String otpLength = Integer.toString(AuthenticatorConstants.DEFAULT_OTP_LENGTH);
         String resendAttempts = Integer.toString(AuthenticatorConstants.DEFAULT_OTP_RESEND_ATTEMPTS);
 
-
         String otpExpiryTimeProperty = IdentityUtil.getProperty(AuthenticatorConstants.ConnectorConfig.OTP_EXPIRY_TIME);
         String useBackupCodesProperty = IdentityUtil.getProperty(
                 AuthenticatorConstants.ConnectorConfig.ENABLE_BACKUP_CODES);

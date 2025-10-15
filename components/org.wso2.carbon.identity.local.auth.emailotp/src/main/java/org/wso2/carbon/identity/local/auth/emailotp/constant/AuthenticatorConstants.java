@@ -86,7 +86,6 @@ public class AuthenticatorConstants {
     public static final String RESEND_CODE_PARAM = "&resendCode=true";
     public static final String OTP_RESEND_ATTEMPTS = "otpResendAttempts";
     public static final String MAX_OTP_RESEND_ATTEMPTS_EXCEEDED = "maxOtpResendAttemptsExceeded";
-
     public static final String MULTI_OPTION_QUERY_PARAM = "multiOptionURI";
     public static final String REMAINING_NUMBER_OF_EMAIL_OTP_ATTEMPTS_QUERY = "&remainingNumberOfEmailOtpAttempts=";
 
