@@ -21,6 +21,7 @@ package org.wso2.carbon.identity.local.auth.emailotp;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang.math.NumberUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.wso2.carbon.extension.identity.helper.FederatedAuthenticatorUtil;
@@ -289,6 +290,24 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
              * Here we need to pass the authenticated user as the authenticated user from context since the events needs
              * to triggered against the context user.
              */
+            Optional<Integer> maxResendAttempts = getMaximumResendAttempts(applicationTenantDomain, context);
+
+            if (maxResendAttempts.isPresent()) {
+                int currentUserResendAttempts = context.getProperty(AuthenticatorConstants.OTP_RESEND_ATTEMPTS) != null
+                        ? Integer.parseInt(context.getProperty(AuthenticatorConstants.OTP_RESEND_ATTEMPTS).
+                        toString()) : 0;
+                if (currentUserResendAttempts >= maxResendAttempts.get()) {
+                    String queryParams = FrameworkUtils.getQueryStringWithFrameworkContextId(context.getQueryParams(),
+                            context.getCallerSessionKey(), context.getContextIdentifier());
+                    redirectToErrorPage(request, response, context, queryParams,
+                            AuthenticatorConstants.ERROR_USER_RESEND_COUNT_EXCEEDED);
+                    return;
+                }
+            }
+
+            if (scenario == AuthenticatorConstants.AuthenticationScenarios.RESEND_OTP) {
+                updateUserResendAttempts(context);
+            }
             sendEmailOtp(email, applicationTenantDomain, authenticatedUserFromContext, scenario, context);
             publishPostEmailOTPGeneratedEvent(authenticatedUserFromContext, request, context);
             redirectToEmailOTPLoginPage(authenticatedUserFromContext.getUserName(), email, applicationTenantDomain,
@@ -1909,5 +1928,33 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             }
         }
         return null;
+    }
+    private void updateUserResendAttempts(AuthenticationContext context) {
+
+        if (context.getProperty(AuthenticatorConstants.OTP_RESEND_ATTEMPTS) == null ||
+                StringUtils.isBlank(context.getProperty(AuthenticatorConstants.OTP_RESEND_ATTEMPTS).toString())) {
+            context.setProperty(AuthenticatorConstants.OTP_RESEND_ATTEMPTS, 1);
+        } else {
+            context.setProperty(AuthenticatorConstants.OTP_RESEND_ATTEMPTS,
+                    (int) context.getProperty(AuthenticatorConstants.OTP_RESEND_ATTEMPTS) + 1);
+        }
+    }
+    protected Optional<Integer> getMaximumResendAttempts(String tenantDomain, AuthenticationContext context)
+            throws AuthenticationFailedException {
+
+        try {
+            String allowedResendCount = AuthenticatorUtils.getEmailAuthenticatorConfig(
+                    AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_RESEND_ATTEMPTS_COUNT, tenantDomain);
+
+            if (NumberUtils.isNumber(allowedResendCount)) {
+                return Optional.of(Integer.parseInt(allowedResendCount));
+            }
+            // if not a number, return default wrapped in Optional
+            return Optional.of(AuthenticatorConstants.DEFAULT_OTP_RESEND_ATTEMPTS);
+
+        } catch (EmailOtpAuthenticatorServerException exception) {
+            throw handleAuthErrorScenario(
+                    AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_CONFIG, context);
+        }
     }
 }
