@@ -306,6 +306,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
                     }
                     String queryParams = FrameworkUtils.getQueryStringWithFrameworkContextId(context.getQueryParams(),
                             context.getCallerSessionKey(), context.getContextIdentifier());
+                    context.setProperty(AUTHENTICATOR_MESSAGE, null);
                     redirectToErrorPage(request, response, context, queryParams,
                             AuthenticatorConstants.ERROR_USER_RESEND_COUNT_EXCEEDED);
                     return;

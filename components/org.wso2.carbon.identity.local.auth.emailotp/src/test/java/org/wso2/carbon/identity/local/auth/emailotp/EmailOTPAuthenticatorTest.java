@@ -41,6 +41,7 @@ import org.wso2.carbon.identity.application.authentication.framework.exception.L
 import org.wso2.carbon.identity.application.authentication.framework.internal.FrameworkServiceDataHolder;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedUser;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatorData;
+import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatorMessage;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatorParamMetadata;
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants;
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkUtils;
@@ -139,6 +140,7 @@ public class EmailOTPAuthenticatorTest {
     private MockedStatic<LoggerUtils> mockLoggerUtils;
 
     private static final String USERNAME = "abc@gmail.com";
+    private static final String USER_ID = "47f02f57-a6a1-4677-8de1-8cfe31b42456";
     private static final String EMAIL_ADDRESS = "abc@gmail.com";
     private static final String TENANT_DOMAIN = "wso2.org";
     private static final int TENANT_ID = -1234;
@@ -479,6 +481,74 @@ public class EmailOTPAuthenticatorTest {
         context.getSequenceConfig().setApplicationConfig(applicationConfig);
     }
 
+
+    @DataProvider(name = "resendLimitDataProvider")
+    public Object[][] resendLimitDataProvider() {
+
+        return new Object[][]{
+
+                {0, 3, false},
+                {1, 3, false},
+                {3, 3, true},
+                {4, 3, true},
+                {2, 5, false}
+        };
+    }
+    @Test(dataProvider = "resendLimitDataProvider",
+            description = "Test resend OTP resend limit logic in EmailOTPAuthenticator with full context and mocks")
+    public void testResendAttemptsValidation(int currentAttempts, int maxAllowed, boolean shouldExceedLimit) throws Exception {
+
+        setAuthenticatorConfig();
+        configureAuthenticatorDataHolder();
+        configureAuthenticatedUser(false);
+        Map<String, String> claimMap = new HashMap<>();
+        claimMap.put(EMAIL_ADDRESS_CLAIM, EMAIL_ADDRESS);
+        context.setTenantDomain(TENANT_DOMAIN);
+        context.setRetrying(true);
+        when(httpServletRequest.getParameter(AuthenticatorConstants.RESEND)).thenReturn("true");
+
+        // Set a prior message
+        AuthenticatorMessage priorMessage = new AuthenticatorMessage(
+                FrameworkConstants.AuthenticatorMessageType.INFO, "EmailOTPSent", "Email sent", null);
+        context.setProperty("authenticatorMessage", priorMessage);
+
+        // Set current attempts to max allowed
+        context.setProperty(AuthenticatorConstants.OTP_RESEND_ATTEMPTS, currentAttempts);
+
+        // Mock config to return maxAllowed for resend attempts
+        authenticatorUtils.when(() ->
+                AuthenticatorUtils.getEmailAuthenticatorConfig(
+                        AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_RESEND_ATTEMPTS_COUNT,
+                        TENANT_DOMAIN
+                )
+        ).thenReturn(String.valueOf(maxAllowed));
+
+        // Simulate resend scenario
+        when(httpServletRequest.getParameter(AuthenticatorConstants.RESEND)).thenReturn("true");
+
+        when(userStoreManager.getUserClaimValues(any(), any(), any())).thenReturn(claimMap);
+        when(realmService.getTenantUserRealm(TENANT_ID)).thenReturn(userRealm);
+        when(userRealm.getUserStoreManager()).thenReturn(userStoreManager);
+
+        Method method = emailOTPAuthenticator.getClass()
+                .getDeclaredMethod("initiateAuthenticationRequest",
+                        HttpServletRequest.class,
+                        HttpServletResponse.class,
+                        AuthenticationContext.class);
+        method.setAccessible(true);
+        try {
+            method.invoke(emailOTPAuthenticator, httpServletRequest, httpServletResponse, context);
+        } catch (InvocationTargetException ignored) {}
+
+        // Assert: The authenticatorMessage context property should now be null
+        if (shouldExceedLimit) {
+            Assert.assertNull(context.getProperty("authenticatorMessage"),
+                    "AuthenticatorMessage should be null when resend attempts exceed maximum.");
+        } else {
+            Assert.assertNotNull(context.getProperty("authenticatorMessage"),
+                    "AuthenticatorMessage should not be null when resend attempts have NOT exceeded maximum.");
+        }
+    }
     private void mockMultiAttributeLoginService() {
 
         when(FrameworkServiceDataHolder.getInstance()).thenReturn(frameworkServiceDataHolder);
@@ -609,6 +679,7 @@ public class EmailOTPAuthenticatorTest {
         AuthenticatedUser authenticatedUser = new AuthenticatedUser();
         authenticatedUser.setUserStoreDomain(USER_STORE_DOMAIN);
         authenticatedUser.setUserName(USERNAME);
+        authenticatedUser.setUserId(USER_ID);
         authenticatedUser.setTenantDomain(TENANT_DOMAIN);
         authenticatedUser.setFederatedUser(isFederated);
         context.setSubject(authenticatedUser);
