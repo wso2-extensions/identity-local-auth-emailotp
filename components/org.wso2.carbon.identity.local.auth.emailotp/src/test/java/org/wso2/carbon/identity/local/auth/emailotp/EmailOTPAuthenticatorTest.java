@@ -496,7 +496,8 @@ public class EmailOTPAuthenticatorTest {
     }
     @Test(dataProvider = "resendLimitDataProvider",
             description = "Test resend OTP resend limit logic in EmailOTPAuthenticator with full context and mocks")
-    public void testResendAttemptsValidation(int currentAttempts, int maxAllowed, boolean shouldExceedLimit) throws Exception {
+    public void testResendAttemptsValidation(int currentAttempts, int maxAllowed,
+                                             boolean shouldExceedLimit) throws Exception {
 
         setAuthenticatorConfig();
         configureAuthenticatorDataHolder();
@@ -538,9 +539,8 @@ public class EmailOTPAuthenticatorTest {
         method.setAccessible(true);
         try {
             method.invoke(emailOTPAuthenticator, httpServletRequest, httpServletResponse, context);
-        } catch (InvocationTargetException ignored) {}
+        } catch (InvocationTargetException ignored) { }
 
-        // Assert: The authenticatorMessage context property should now be null
         if (shouldExceedLimit) {
             Assert.assertNull(context.getProperty("authenticatorMessage"),
                     "AuthenticatorMessage should be null when resend attempts exceed maximum.");
