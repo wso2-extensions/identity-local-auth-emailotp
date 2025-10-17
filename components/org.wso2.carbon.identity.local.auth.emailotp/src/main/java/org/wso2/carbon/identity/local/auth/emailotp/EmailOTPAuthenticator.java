@@ -292,6 +292,9 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
              */
             Optional<Integer> maxResendAttempts = getMaximumResendAttempts(applicationTenantDomain, context);
 
+            if (scenario == AuthenticatorConstants.AuthenticationScenarios.RESEND_OTP) {
+                updateUserResendAttempts(context);
+            }
             if (maxResendAttempts.isPresent()) {
                 if (log.isDebugEnabled()) {
                     log.debug("Maximum resend attempts configured: " + maxResendAttempts.get());
@@ -299,7 +302,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
                 int currentUserResendAttempts = context.getProperty(AuthenticatorConstants.OTP_RESEND_ATTEMPTS) != null
                         ? Integer.parseInt(context.getProperty(AuthenticatorConstants.OTP_RESEND_ATTEMPTS).
                         toString()) : 0;
-                if (currentUserResendAttempts >= maxResendAttempts.get()) {
+                if (currentUserResendAttempts > maxResendAttempts.get() && ( currentUserResendAttempts!= 0)) {
                     if (log.isDebugEnabled()) {
                         log.debug("User exceeded maximum OTP resend attempts. Current attempts: " +
                                 currentUserResendAttempts);
@@ -313,9 +316,6 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
                 }
             }
 
-            if (scenario == AuthenticatorConstants.AuthenticationScenarios.RESEND_OTP) {
-                updateUserResendAttempts(context);
-            }
             sendEmailOtp(email, applicationTenantDomain, authenticatedUserFromContext, scenario, context);
             publishPostEmailOTPGeneratedEvent(authenticatedUserFromContext, request, context);
             redirectToEmailOTPLoginPage(authenticatedUserFromContext.getUserName(), email, applicationTenantDomain,
