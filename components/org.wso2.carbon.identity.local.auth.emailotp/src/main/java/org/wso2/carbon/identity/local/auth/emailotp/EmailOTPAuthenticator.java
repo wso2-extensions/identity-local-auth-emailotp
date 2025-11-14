@@ -292,28 +292,26 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
              */
             Optional<Integer> maxResendAttempts = getMaximumResendAttempts(applicationTenantDomain, context);
 
-            if (scenario == AuthenticatorConstants.AuthenticationScenarios.RESEND_OTP) {
+            if (log.isDebugEnabled()) {
+                log.debug("Maximum resend attempts configured: " + maxResendAttempts.get());
+            }
+            if (AuthenticatorConstants.AuthenticationScenarios.RESEND_OTP.equals(scenario)) {
                 updateUserResendAttempts(context);
             }
-            if (maxResendAttempts.isPresent()) {
+            int currentUserResendAttempts = context.getProperty(AuthenticatorConstants.OTP_RESEND_ATTEMPTS) != null
+                    ? Integer.parseInt(context.getProperty(AuthenticatorConstants.OTP_RESEND_ATTEMPTS).
+                    toString()) : 0;
+            if (currentUserResendAttempts > maxResendAttempts.get() && (maxResendAttempts.get() != 0)) {
                 if (log.isDebugEnabled()) {
-                    log.debug("Maximum resend attempts configured: " + maxResendAttempts.get());
+                    log.debug("User exceeded maximum OTP resend attempts. Current attempts: " +
+                            currentUserResendAttempts);
                 }
-                int currentUserResendAttempts = context.getProperty(AuthenticatorConstants.OTP_RESEND_ATTEMPTS) != null
-                        ? Integer.parseInt(context.getProperty(AuthenticatorConstants.OTP_RESEND_ATTEMPTS).
-                        toString()) : 0;
-                if (currentUserResendAttempts > maxResendAttempts.get() && ( currentUserResendAttempts!= 0)) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("User exceeded maximum OTP resend attempts. Current attempts: " +
-                                currentUserResendAttempts);
-                    }
-                    String queryParams = FrameworkUtils.getQueryStringWithFrameworkContextId(context.getQueryParams(),
-                            context.getCallerSessionKey(), context.getContextIdentifier());
-                    context.setProperty(AUTHENTICATOR_MESSAGE, null);
-                    redirectToErrorPage(request, response, context, queryParams,
-                            AuthenticatorConstants.ERROR_USER_RESEND_COUNT_EXCEEDED);
-                    return;
-                }
+                String queryParams = FrameworkUtils.getQueryStringWithFrameworkContextId(context.getQueryParams(),
+                        context.getCallerSessionKey(), context.getContextIdentifier());
+                context.setProperty(AUTHENTICATOR_MESSAGE, null);
+                redirectToErrorPage(request, response, context, queryParams,
+                        AuthenticatorConstants.ERROR_USER_RESEND_COUNT_EXCEEDED);
+                return;
             }
 
             sendEmailOtp(email, applicationTenantDomain, authenticatedUserFromContext, scenario, context);
@@ -1939,8 +1937,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
     }
     private void updateUserResendAttempts(AuthenticationContext context) {
 
-        if (context.getProperty(AuthenticatorConstants.OTP_RESEND_ATTEMPTS) == null ||
-                StringUtils.isBlank(context.getProperty(AuthenticatorConstants.OTP_RESEND_ATTEMPTS).toString())) {
+        if (context.getProperty(AuthenticatorConstants.OTP_RESEND_ATTEMPTS) == null) {
             context.setProperty(AuthenticatorConstants.OTP_RESEND_ATTEMPTS, 1);
         } else {
             context.setProperty(AuthenticatorConstants.OTP_RESEND_ATTEMPTS,
@@ -1958,6 +1955,10 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
                 return Optional.of(Integer.parseInt(allowedResendCount));
             }
             // if not a number, return default wrapped in Optional
+            if (log.isDebugEnabled()) {
+                log.debug("Since the authenticator did not return a value the default value of " +
+                        AuthenticatorConstants.DEFAULT_OTP_RESEND_ATTEMPTS + " wil be used");
+            }
             return Optional.of(AuthenticatorConstants.DEFAULT_OTP_RESEND_ATTEMPTS);
 
         } catch (EmailOtpAuthenticatorServerException exception) {

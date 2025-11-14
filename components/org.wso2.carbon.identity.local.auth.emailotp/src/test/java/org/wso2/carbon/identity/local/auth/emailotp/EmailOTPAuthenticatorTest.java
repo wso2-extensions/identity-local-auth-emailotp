@@ -487,9 +487,10 @@ public class EmailOTPAuthenticatorTest {
 
         return new Object[][]{
 
-                {0, 3, false},
-                {1, 3, false},
-                {3, 3, true},
+                {0, 0, false},
+                {5, 0, false},
+                {3, 3, true}, //This is due to adding one more retry attempt before the check happens
+                {8, 3, true},
                 {4, 3, true},
                 {2, 5, false}
         };
@@ -512,6 +513,7 @@ public class EmailOTPAuthenticatorTest {
         AuthenticatorMessage priorMessage = new AuthenticatorMessage(
                 FrameworkConstants.AuthenticatorMessageType.INFO, "EmailOTPSent", "Email sent", null);
         context.setProperty("authenticatorMessage", priorMessage);
+        context.setCurrentAuthenticator(EMAIL_OTP_AUTHENTICATOR_NAME);
 
         // Set current attempts to max allowed
         context.setProperty(AuthenticatorConstants.OTP_RESEND_ATTEMPTS, currentAttempts);

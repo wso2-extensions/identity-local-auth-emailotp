@@ -35,7 +35,7 @@ public class AuthenticatorConstants {
     public static final String EMAIL_ADDRESS_MASKING_CHARACTER = "*";
     public static final long DEFAULT_EMAIL_OTP_VALIDITY_IN_MILLIS = 300000;
     public static final int DEFAULT_OTP_LENGTH = 6;
-    public static final int DEFAULT_OTP_RESEND_ATTEMPTS = 5;
+    public static final int DEFAULT_OTP_RESEND_ATTEMPTS = 0;
     public static final String DEFAULT_EMAIL_MASKING_REGEX = "(?<=.{3}).(?=[^@]*?@)";
     public static final String EMAIL_NOTIFICATION_TEMPLATE_TYPE = "notificationTemplate";
 
@@ -78,7 +78,9 @@ public class AuthenticatorConstants {
     public static final String ERROR_USER_ACCOUNT_LOCKED_QUERY_PARAMS =
             "&authFailure=true&authFailureMsg=user.account.locked";
     public static final String ERROR_USER_RESEND_COUNT_EXCEEDED =
-            "&authFailure=true&authFailureMsg=resent.count.exceeded";
+            "&authFailure=true&authFailureMsg=resend.count.exceeded";
+    public static final String USER_RESEND_COUNT_EXCEEDED =
+            "resend.count.exceeded";
     public static final String SCREEN_VALUE_QUERY_PARAM = "&screenValue=";
     public static final String UNLOCK_QUERY_PARAM = "&unlockTime=";
     public static final String LOCKED_REASON_QUERY_PARAM = "&lockedReason=";
