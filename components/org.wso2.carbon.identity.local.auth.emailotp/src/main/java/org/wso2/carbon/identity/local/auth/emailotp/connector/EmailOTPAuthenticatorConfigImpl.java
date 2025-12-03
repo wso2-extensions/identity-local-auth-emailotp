@@ -35,7 +35,6 @@ import java.util.Properties;
  */
 public class EmailOTPAuthenticatorConfigImpl implements IdentityConnectorConfig {
 
-
     @Override
     public String getName() {
 
@@ -78,6 +77,9 @@ public class EmailOTPAuthenticatorConfigImpl implements IdentityConnectorConfig 
                 "Use alphanumeric characters for OTP token");
         nameMapping.put(AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_RESEND_ATTEMPTS_COUNT,
                 "Number of allowed resend attempts");
+        nameMapping.put(
+                AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_RESEND_BLOCK_DURATION,
+                "Blocking duration in minutes upon exceeding allowed resend attempts");
         return nameMapping;
     }
 
@@ -95,6 +97,9 @@ public class EmailOTPAuthenticatorConfigImpl implements IdentityConnectorConfig 
                 "Enabling this will generate OTP tokens with 0-9 and alphabetic characters");
         descriptionMapping.put(AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_RESEND_ATTEMPTS_COUNT,
                 "Number of allowed resend attempts of a user");
+        descriptionMapping.put(AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_RESEND_BLOCK_DURATION,
+                "Time in minutes to block OTP resend " +
+                        "functionality upon exceeding allowed resend attempts");
         return descriptionMapping;
     }
 
@@ -108,6 +113,7 @@ public class EmailOTPAuthenticatorConfigImpl implements IdentityConnectorConfig 
         properties.add(AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_USE_ALPHANUMERIC_CHARS);
         properties.add(AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_USE_NUMERIC_CHARS);
         properties.add(AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_RESEND_ATTEMPTS_COUNT);
+        properties.add(AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_RESEND_BLOCK_DURATION);
         return properties.toArray(new String[0]);
     }
 
@@ -121,6 +127,7 @@ public class EmailOTPAuthenticatorConfigImpl implements IdentityConnectorConfig 
         String useNumericChars = "true";
         String otpLength = Integer.toString(AuthenticatorConstants.DEFAULT_OTP_LENGTH);
         String resendAttempts = Integer.toString(AuthenticatorConstants.DEFAULT_OTP_RESEND_ATTEMPTS);
+        String blockingTime = Integer.toString(AuthenticatorConstants.DEFAULT_OTP_RESEND_BLOCK_DURATION);
 
         String otpExpiryTimeProperty = IdentityUtil.getProperty(AuthenticatorConstants.ConnectorConfig.OTP_EXPIRY_TIME);
         String useBackupCodesProperty = IdentityUtil.getProperty(
@@ -133,6 +140,8 @@ public class EmailOTPAuthenticatorConfigImpl implements IdentityConnectorConfig 
                 AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_LENGTH);
         String resendAttemptsProperty = IdentityUtil.getProperty(
                 AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_RESEND_ATTEMPTS_COUNT);
+        String blockingTimeProperty = IdentityUtil.getProperty(
+                AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_RESEND_BLOCK_DURATION);
 
         if (StringUtils.isNotBlank(otpExpiryTimeProperty)) {
             otpExpiryTime = otpExpiryTimeProperty;
@@ -152,6 +161,9 @@ public class EmailOTPAuthenticatorConfigImpl implements IdentityConnectorConfig 
         if (StringUtils.isNotBlank(resendAttemptsProperty)) {
             resendAttempts = resendAttemptsProperty;
         }
+        if (StringUtils.isNotBlank(blockingTimeProperty)) {
+            blockingTime = blockingTimeProperty;
+        }
         Map<String, String> defaultProperties = new HashMap<>();
         defaultProperties.put(AuthenticatorConstants.ConnectorConfig.OTP_EXPIRY_TIME, otpExpiryTime);
         defaultProperties.put(AuthenticatorConstants.ConnectorConfig.ENABLE_BACKUP_CODES, useBackupCodes);
@@ -160,6 +172,7 @@ public class EmailOTPAuthenticatorConfigImpl implements IdentityConnectorConfig 
         defaultProperties.put(AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_USE_NUMERIC_CHARS, useNumericChars);
         defaultProperties.put(AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_LENGTH, otpLength);
         defaultProperties.put(AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_RESEND_ATTEMPTS_COUNT, resendAttempts);
+        defaultProperties.put(AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_RESEND_BLOCK_DURATION, blockingTime);
 
         Properties properties = new Properties();
         properties.putAll(defaultProperties);
