@@ -92,6 +92,7 @@ import java.util.Set;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import static org.wso2.carbon.identity.auth.otp.core.constant.AuthenticatorConstants.ERROR_USER_RESEND_COUNT_EXCEEDED_QUERY_PARAMS;
 import static org.wso2.carbon.identity.event.IdentityEventConstants.Event.POST_NON_BASIC_AUTHENTICATION;
 import static org.wso2.carbon.identity.event.IdentityEventConstants.EventProperty.AUTHENTICATOR_NAME;
 import static org.wso2.carbon.identity.event.IdentityEventConstants.EventProperty.OPERATION_STATUS;
@@ -102,10 +103,16 @@ import static org.wso2.carbon.identity.event.handler.notification.NotificationCo
 import static org.wso2.carbon.identity.handler.event.account.lock.constants.AccountConstants.FAILED_LOGIN_ATTEMPTS_PROPERTY;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.CODE;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.CODE_LOWERCASE;
+import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.Claims.EMAIL_OTP_LAST_SENT_TIME_CLAIM;
+import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.Claims.EMAIL_OTP_RESEND_ATTEMPTS_CLAIM;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.DISPLAY_CODE;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.EMAIL_OTP_AUTHENTICATION_ENDPOINT_URL;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.EMAIL_OTP_AUTHENTICATION_ERROR_PAGE_URL;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.EMAIL_OTP_AUTHENTICATOR_NAME;
+import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_LAST_RESEND_TIME;
+import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_OTP_RESEND_ATTEMPTS;
+import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_INVALID_CLAIM_VALUE;
+import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_UPDATING_USER_CLAIMS;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.HIDE_USER_EXISTENCE_CONFIG;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.LogConstants.ActionIDs.INITIATE_EMAIL_OTP_REQUEST;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.LogConstants.ActionIDs.PROCESS_AUTHENTICATION_RESPONSE;
@@ -289,7 +296,55 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
              * Here we need to pass the authenticated user as the authenticated user from context since the events needs
              * to triggered against the context user.
              */
+            int allowedResendAttemptsCount = getMaximumResendAttempts(applicationTenantDomain, context);
+            int otpResendCount = 0;
+            boolean shouldUpdateUserClaim = false;
+            String userResendCountStr =
+                    getUserClaimValueFromUserStore(EMAIL_OTP_RESEND_ATTEMPTS_CLAIM, authenticatedUserFromContext,
+                            ERROR_CODE_ERROR_GETTING_OTP_RESEND_ATTEMPTS, context);
+            if (StringUtils.isNotBlank(userResendCountStr)) {
+                try {
+                    otpResendCount = Integer.parseInt(userResendCountStr);
+                } catch (NumberFormatException e) {
+                    throw handleAuthErrorScenario(ERROR_CODE_ERROR_INVALID_CLAIM_VALUE, context, e);
+                }
+            }
+
+            // Get last successful resend timestamp (if any)
+            String lastResendTimestamp =
+                    getUserClaimValueFromUserStore(EMAIL_OTP_LAST_SENT_TIME_CLAIM, authenticatedUserFromContext,
+                            ERROR_CODE_ERROR_GETTING_LAST_RESEND_TIME, context);
+            if (allowedResendAttemptsCount != 0 && otpResendCount >= allowedResendAttemptsCount) {
+                // Convert block time (minutes) to milliseconds
+                int otpResendBlockTimeMinutes = getOTPResendBlockDuration(applicationTenantDomain, context);
+                if (StringUtils.isNotBlank(lastResendTimestamp)) {
+                    long lastResend = Long.parseLong(lastResendTimestamp);
+                    long now = System.currentTimeMillis();
+                    long blockTimeMillis = otpResendBlockTimeMinutes * 60_000L; // MINUTES → MILLIS
+                    boolean withinBlockWindow = (now - lastResend) < blockTimeMillis;
+
+                    if (withinBlockWindow) {
+                        handleOTPResendCountExceededScenario(request, response, context);
+                        return;
+                    } else {
+                        otpResendCount = 0;
+                        shouldUpdateUserClaim = true;
+                    }
+                }
+            }
+            if (allowedResendAttemptsCount != 0 &&
+                    scenario == AuthenticatorConstants.AuthenticationScenarios.RESEND_OTP) {
+                otpResendCount++;
+                shouldUpdateUserClaim = true;
+            }
+
             sendEmailOtp(email, applicationTenantDomain, authenticatedUserFromContext, scenario, context);
+            if (shouldUpdateUserClaim) {
+                Map<String, String> claimMap = new HashMap<>();
+                claimMap.put(EMAIL_OTP_RESEND_ATTEMPTS_CLAIM, String.valueOf((otpResendCount)));
+                claimMap.put(EMAIL_OTP_LAST_SENT_TIME_CLAIM, String.valueOf(System.currentTimeMillis()));
+                setUserClaimValueFromUserStore(claimMap, authenticatedUserFromContext, context);
+            }
             publishPostEmailOTPGeneratedEvent(authenticatedUserFromContext, request, context);
             redirectToEmailOTPLoginPage(authenticatedUserFromContext.getUserName(), email, applicationTenantDomain,
                     response, request, context);
@@ -310,6 +365,15 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
 
         return Optional.ofNullable(getUser(authenticatedUser))
                 .map(AuthenticatedUser::new);
+    }
+
+    private void handleOTPResendCountExceededScenario(HttpServletRequest request, HttpServletResponse response,
+                                                      AuthenticationContext context)
+            throws AuthenticationFailedException {
+
+        String queryParams = FrameworkUtils.getQueryStringWithFrameworkContextId(context.getQueryParams(),
+                context.getCallerSessionKey(), context.getContextIdentifier());
+        redirectToErrorPage(request, response, context, queryParams, ERROR_USER_RESEND_COUNT_EXCEEDED_QUERY_PARAMS);
     }
 
     @Override
@@ -1406,6 +1470,21 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         }
     }
 
+    private void setUserClaimValueFromUserStore(Map<String, String> userClaims, AuthenticatedUser authenticatedUser,
+                                                AuthenticationContext context) throws AuthenticationFailedException {
+
+        UserStoreManager userStoreManager = getUserStoreManager(authenticatedUser, context);
+        try {
+            userStoreManager.setUserClaimValues(
+                    MultitenantUtils.getTenantAwareUsername(authenticatedUser.toFullQualifiedUsername()), userClaims,
+                    null);
+        } catch (UserStoreException e) {
+            throw handleAuthErrorScenario(ERROR_CODE_ERROR_UPDATING_USER_CLAIMS, e, context,
+                    org.wso2.carbon.identity.auth.otp.core.util.AuthenticatorUtils.maskIfRequired(
+                            authenticatedUser.getUserName()));
+        }
+    }
+
     /**
      * Retrieve the provisioned username of the authenticated user. If this is a federated scenario, the
      * authenticated username will be same as the username in context. If the flow is for a JIT provisioned user, the
@@ -1909,5 +1988,53 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             }
         }
         return null;
+    }
+
+    private int getMaximumResendAttempts(String tenantDomain, AuthenticationContext context)
+            throws AuthenticationFailedException {
+
+        try {
+            String allowedResendCount = AuthenticatorUtils.getEmailAuthenticatorConfig(
+                    AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_RESEND_ATTEMPTS_COUNT, tenantDomain);
+
+            try {
+                return Integer.parseInt(allowedResendCount);
+            } catch (NumberFormatException e) {
+                // if not a number, return default wrapped in Optional
+                if (log.isDebugEnabled()) {
+                    log.debug("Since the authenticator did not return a value the default value of " +
+                            AuthenticatorConstants.DEFAULT_OTP_RESEND_ATTEMPTS + " wil be used");
+                }
+                return AuthenticatorConstants.DEFAULT_OTP_RESEND_ATTEMPTS;
+            }
+
+        } catch (EmailOtpAuthenticatorServerException exception) {
+            throw handleAuthErrorScenario(
+                    AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_CONFIG, context);
+        }
+    }
+
+    private int getOTPResendBlockDuration(String tenantDomain, AuthenticationContext context)
+            throws AuthenticationFailedException {
+
+        try {
+            String resendBlockDuration = AuthenticatorUtils.getEmailAuthenticatorConfig(
+                    AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_RESEND_BLOCK_DURATION, tenantDomain);
+
+            try {
+                return Integer.parseInt(resendBlockDuration);
+            } catch (NumberFormatException e) {
+                // if not a number, return default wrapped in Optional
+                if (log.isDebugEnabled()) {
+                    log.debug("Since the authenticator did not return a value the default value of " +
+                            AuthenticatorConstants.DEFAULT_OTP_RESEND_BLOCK_DURATION + " wil be used");
+                }
+                return AuthenticatorConstants.DEFAULT_OTP_RESEND_BLOCK_DURATION;
+            }
+
+        } catch (EmailOtpAuthenticatorServerException exception) {
+            throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_CONFIG,
+                    context);
+        }
     }
 }

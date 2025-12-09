@@ -35,6 +35,8 @@ public class AuthenticatorConstants {
     public static final String EMAIL_ADDRESS_MASKING_CHARACTER = "*";
     public static final long DEFAULT_EMAIL_OTP_VALIDITY_IN_MILLIS = 300000;
     public static final int DEFAULT_OTP_LENGTH = 6;
+    public static final int DEFAULT_OTP_RESEND_ATTEMPTS = 0;
+    public static final int DEFAULT_OTP_RESEND_BLOCK_DURATION = 5;
     public static final String DEFAULT_EMAIL_MASKING_REGEX = "(?<=.{3}).(?=[^@]*?@)";
     public static final String EMAIL_NOTIFICATION_TEMPLATE_TYPE = "notificationTemplate";
 
@@ -76,11 +78,17 @@ public class AuthenticatorConstants {
     public static final String RETRY_QUERY_PARAMS = "&authFailure=true&authFailureMsg=authentication.fail.message";
     public static final String ERROR_USER_ACCOUNT_LOCKED_QUERY_PARAMS =
             "&authFailure=true&authFailureMsg=user.account.locked";
+    public static final String ERROR_EMAIL_OTP_RESEND_COUNT_EXCEEDED =
+            "&authFailure=true&authFailureMsg=resend.count.exceeded";
+    public static final String EMAIL_OTP_RESEND_COUNT_EXCEEDED =
+            "resend.count.exceeded";
     public static final String SCREEN_VALUE_QUERY_PARAM = "&screenValue=";
     public static final String UNLOCK_QUERY_PARAM = "&unlockTime=";
     public static final String LOCKED_REASON_QUERY_PARAM = "&lockedReason=";
     public static final String ERROR_CODE_QUERY_PARAM = "&errorCode=";
     public static final String RESEND_CODE_PARAM = "&resendCode=true";
+    public static final String OTP_RESEND_ATTEMPTS = "otpResendAttempts";
+    public static final String MAX_OTP_RESEND_ATTEMPTS_EXCEEDED = "maxOtpResendAttemptsExceeded";
     public static final String MULTI_OPTION_QUERY_PARAM = "multiOptionURI";
     public static final String REMAINING_NUMBER_OF_EMAIL_OTP_ATTEMPTS_QUERY = "&remainingNumberOfEmailOtpAttempts=";
 
@@ -113,6 +121,8 @@ public class AuthenticatorConstants {
         public static final String EMAIL_OTP_LENGTH = "EmailOTP.OTPLength";
         public static final String EMAIL_OTP_USE_ALPHANUMERIC_CHARS = "EmailOTP.UseAlphanumericChars";
         public static final String EMAIL_OTP_USE_NUMERIC_CHARS = "EmailOTP.OtpRegex.UseNumericChars";
+        public static final String EMAIL_OTP_RESEND_ATTEMPTS_COUNT  = "EmailOTP.ResendAttemptsCount";
+        public static final String EMAIL_OTP_RESEND_BLOCK_DURATION = "EmailOTP.ResendBlockDuration";
     }
 
     /**
@@ -127,6 +137,10 @@ public class AuthenticatorConstants {
         public static final String EMAIL_OTP_FAILED_ATTEMPTS_CLAIM =
                 "http://wso2.org/claims/identity/failedEmailOtpAttempts";
         public static final String LOCALE_CLAIM = IdentityUtil.getClaimUriLocale();
+        public static final String EMAIL_OTP_RESEND_ATTEMPTS_CLAIM =
+                "http://wso2.org/claims/identity/emailOtpResendAttempts";
+        public static final String EMAIL_OTP_LAST_SENT_TIME_CLAIM =
+                "http://wso2.org/claims/identity/emailOtpLastSentTime";
     }
 
     /**
@@ -153,7 +167,7 @@ public class AuthenticatorConstants {
 
             private InputKeys() {
             }
-            
+
             public static final String EMAIL_TO = "email to";
         }
     }
@@ -220,7 +234,14 @@ public class AuthenticatorConstants {
         ERROR_CODE_NO_AUTHENTICATED_USER("65027", "No authenticated user found"),
         ERROR_CODE_ERROR_REDIRECTING_TO_IDF_PAGE("65028", "Error while redirecting to the login page."),
         ERROR_CODE_ERROR_GETTING_AUTHENTICATED_USER("65029",
-                "Error occurred while getting the authenticated user.");
+                "Error occurred while getting the authenticated user."),
+        ERROR_CODE_ERROR_GETTING_OTP_RESEND_ATTEMPTS("65030",
+                "Error occurred while getting OTP resend attempts for user: %s"),
+        ERROR_CODE_ERROR_GETTING_LAST_RESEND_TIME("65031",
+                "Error occurred while getting last resend time for user: %s"),
+        ERROR_CODE_ERROR_UPDATING_USER_CLAIMS("65032",
+                "Error occurred while updating the claims for user: %s"),
+        ERROR_CODE_ERROR_INVALID_CLAIM_VALUE("65033", "Invalid claim value provided");
 
 
         private final String code;
