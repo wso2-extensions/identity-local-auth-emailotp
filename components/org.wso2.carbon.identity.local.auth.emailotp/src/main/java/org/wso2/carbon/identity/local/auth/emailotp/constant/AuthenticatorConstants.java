@@ -78,9 +78,9 @@ public class AuthenticatorConstants {
     public static final String RETRY_QUERY_PARAMS = "&authFailure=true&authFailureMsg=authentication.fail.message";
     public static final String ERROR_USER_ACCOUNT_LOCKED_QUERY_PARAMS =
             "&authFailure=true&authFailureMsg=user.account.locked";
-    public static final String ERROR_USER_RESEND_COUNT_EXCEEDED =
+    public static final String ERROR_EMAIL_OTP_RESEND_COUNT_EXCEEDED =
             "&authFailure=true&authFailureMsg=resend.count.exceeded";
-    public static final String USER_RESEND_COUNT_EXCEEDED =
+    public static final String EMAIL_OTP_RESEND_COUNT_EXCEEDED =
             "resend.count.exceeded";
     public static final String SCREEN_VALUE_QUERY_PARAM = "&screenValue=";
     public static final String UNLOCK_QUERY_PARAM = "&unlockTime=";
