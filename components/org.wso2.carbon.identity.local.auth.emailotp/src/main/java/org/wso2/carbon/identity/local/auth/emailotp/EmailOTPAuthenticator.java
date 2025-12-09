@@ -112,6 +112,7 @@ import static org.wso2.carbon.identity.local.auth.emailotp.constant.Authenticato
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.EMAIL_OTP_AUTHENTICATOR_NAME;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_LAST_RESEND_TIME;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_OTP_RESEND_ATTEMPTS;
+import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_INVALID_CLAIM_VALUE;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_UPDATING_USER_CLAIMS;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.HIDE_USER_EXISTENCE_CONFIG;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.LogConstants.ActionIDs.INITIATE_EMAIL_OTP_REQUEST;
@@ -303,7 +304,11 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
                     getUserClaimValueFromUserStore(EMAIL_OTP_RESEND_ATTEMPTS_CLAIM, authenticatedUserFromContext,
                             ERROR_CODE_ERROR_GETTING_OTP_RESEND_ATTEMPTS, context);
             if (StringUtils.isNotBlank(userResendCountStr)) {
-                otpResendCount = Integer.parseInt(userResendCountStr);
+                try {
+                    otpResendCount = Integer.parseInt(userResendCountStr);
+                } catch (NumberFormatException e) {
+                    throw handleAuthErrorScenario(ERROR_CODE_ERROR_INVALID_CLAIM_VALUE, context, e);
+                }
             }
 
             // Get last successful resend timestamp (if any)
@@ -1986,22 +1991,23 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         return null;
     }
 
-    protected int getMaximumResendAttempts(String tenantDomain, AuthenticationContext context)
+    private int getMaximumResendAttempts(String tenantDomain, AuthenticationContext context)
             throws AuthenticationFailedException {
 
         try {
             String allowedResendCount = AuthenticatorUtils.getEmailAuthenticatorConfig(
                     AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_RESEND_ATTEMPTS_COUNT, tenantDomain);
 
-            if (NumberUtils.isNumber(allowedResendCount)) {
+            try {
                 return Integer.parseInt(allowedResendCount);
+            } catch (NumberFormatException e) {
+                // if not a number, return default wrapped in Optional
+                if (log.isDebugEnabled()) {
+                    log.debug("Since the authenticator did not return a value the default value of " +
+                            AuthenticatorConstants.DEFAULT_OTP_RESEND_ATTEMPTS + " wil be used");
+                }
+                return AuthenticatorConstants.DEFAULT_OTP_RESEND_ATTEMPTS;
             }
-            // if not a number, return default wrapped in Optional
-            if (log.isDebugEnabled()) {
-                log.debug("Since the authenticator did not return a value the default value of " +
-                        AuthenticatorConstants.DEFAULT_OTP_RESEND_ATTEMPTS + " wil be used");
-            }
-            return AuthenticatorConstants.DEFAULT_OTP_RESEND_ATTEMPTS;
 
         } catch (EmailOtpAuthenticatorServerException exception) {
             throw handleAuthErrorScenario(
@@ -2009,22 +2015,23 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         }
     }
 
-    protected int getOTPResendBlockDuration(String tenantDomain, AuthenticationContext context)
+    private int getOTPResendBlockDuration(String tenantDomain, AuthenticationContext context)
             throws AuthenticationFailedException {
 
         try {
             String resendBlockDuration = AuthenticatorUtils.getEmailAuthenticatorConfig(
                     AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_RESEND_BLOCK_DURATION, tenantDomain);
 
-            if (NumberUtils.isNumber(resendBlockDuration)) {
+            try {
                 return Integer.parseInt(resendBlockDuration);
+            } catch (NumberFormatException e) {
+                // if not a number, return default wrapped in Optional
+                if (log.isDebugEnabled()) {
+                    log.debug("Since the authenticator did not return a value the default value of " +
+                            AuthenticatorConstants.DEFAULT_OTP_RESEND_BLOCK_DURATION + " wil be used");
+                }
+                return AuthenticatorConstants.DEFAULT_OTP_RESEND_BLOCK_DURATION;
             }
-            // if not a number, return default wrapped in Optional
-            if (log.isDebugEnabled()) {
-                log.debug("Since the authenticator did not return a value the default value of " +
-                        AuthenticatorConstants.DEFAULT_OTP_RESEND_BLOCK_DURATION + " wil be used");
-            }
-            return AuthenticatorConstants.DEFAULT_OTP_RESEND_BLOCK_DURATION;
 
         } catch (EmailOtpAuthenticatorServerException exception) {
             throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_CONFIG,
