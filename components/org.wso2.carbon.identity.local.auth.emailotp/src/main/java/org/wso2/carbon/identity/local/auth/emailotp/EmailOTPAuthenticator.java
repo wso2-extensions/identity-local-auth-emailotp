@@ -21,7 +21,6 @@ package org.wso2.carbon.identity.local.auth.emailotp;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
-import org.apache.commons.lang.math.NumberUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.wso2.carbon.extension.identity.helper.FederatedAuthenticatorUtil;
