@@ -92,7 +92,6 @@ import java.util.Set;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import static org.wso2.carbon.identity.auth.otp.core.constant.AuthenticatorConstants.ERROR_USER_RESEND_COUNT_EXCEEDED_QUERY_PARAMS;
 import static org.wso2.carbon.identity.event.IdentityEventConstants.Event.POST_NON_BASIC_AUTHENTICATION;
 import static org.wso2.carbon.identity.event.IdentityEventConstants.EventProperty.AUTHENTICATOR_NAME;
 import static org.wso2.carbon.identity.event.IdentityEventConstants.EventProperty.OPERATION_STATUS;
@@ -373,7 +372,8 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
 
         String queryParams = FrameworkUtils.getQueryStringWithFrameworkContextId(context.getQueryParams(),
                 context.getCallerSessionKey(), context.getContextIdentifier());
-        redirectToErrorPage(request, response, context, queryParams, ERROR_USER_RESEND_COUNT_EXCEEDED_QUERY_PARAMS);
+        redirectToErrorPage(request, response, context, queryParams, 
+                AuthenticatorConstants.ERROR_EMAIL_OTP_RESEND_COUNT_EXCEEDED);
     }
 
     @Override
