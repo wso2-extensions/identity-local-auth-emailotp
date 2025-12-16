@@ -108,6 +108,7 @@ import static org.wso2.carbon.identity.local.auth.emailotp.constant.Authenticato
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.EMAIL_OTP_AUTHENTICATION_ENDPOINT_URL;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.EMAIL_OTP_AUTHENTICATION_ERROR_PAGE_URL;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.EMAIL_OTP_AUTHENTICATOR_NAME;
+import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_CHECKING_USER_EXISTENCE;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_LAST_RESEND_TIME;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_OTP_RESEND_ATTEMPTS;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_INVALID_CLAIM_VALUE;
@@ -297,44 +298,50 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
              */
             int allowedResendAttemptsCount = getMaximumResendAttempts(applicationTenantDomain, context);
             int otpResendCount = 0;
+
+            AuthenticatedUser mappedLocalUser =
+                    authenticatedUserFromContext.isFederatedUser() ? authenticatingUser :
+                            authenticatedUserFromContext;
+            boolean isUserExists = isUserExists(mappedLocalUser, context);
             boolean shouldUpdateUserClaim = false;
-            String userResendCountStr =
-                    getUserClaimValueFromUserStore(EMAIL_OTP_RESEND_ATTEMPTS_CLAIM, authenticatedUserFromContext,
-                            ERROR_CODE_ERROR_GETTING_OTP_RESEND_ATTEMPTS, context);
-            if (StringUtils.isNotBlank(userResendCountStr)) {
-                try {
-                    otpResendCount = Integer.parseInt(userResendCountStr);
-                } catch (NumberFormatException e) {
-                    throw handleAuthErrorScenario(ERROR_CODE_ERROR_INVALID_CLAIM_VALUE, context, e);
-                }
-            }
-
-            // Get last successful resend timestamp (if any)
-            String lastResendTimestamp =
-                    getUserClaimValueFromUserStore(EMAIL_OTP_LAST_SENT_TIME_CLAIM, authenticatedUserFromContext,
-                            ERROR_CODE_ERROR_GETTING_LAST_RESEND_TIME, context);
-            if (allowedResendAttemptsCount != 0 && otpResendCount >= allowedResendAttemptsCount) {
-                // Convert block time (minutes) to milliseconds
-                int otpResendBlockTimeMinutes = getOTPResendBlockDuration(applicationTenantDomain, context);
-                if (StringUtils.isNotBlank(lastResendTimestamp)) {
-                    long lastResend = Long.parseLong(lastResendTimestamp);
-                    long now = System.currentTimeMillis();
-                    long blockTimeMillis = otpResendBlockTimeMinutes * 60_000L; // MINUTES → MILLIS
-                    boolean withinBlockWindow = (now - lastResend) < blockTimeMillis;
-
-                    if (withinBlockWindow) {
-                        handleOTPResendCountExceededScenario(request, response, context);
-                        return;
-                    } else {
-                        otpResendCount = 0;
-                        shouldUpdateUserClaim = true;
+            if (isUserExists && allowedResendAttemptsCount != 0) {
+                String userResendCountStr =
+                        getUserClaimValueFromUserStore(EMAIL_OTP_RESEND_ATTEMPTS_CLAIM, mappedLocalUser,
+                                ERROR_CODE_ERROR_GETTING_OTP_RESEND_ATTEMPTS, context);
+                if (StringUtils.isNotBlank(userResendCountStr)) {
+                    try {
+                        otpResendCount = Integer.parseInt(userResendCountStr);
+                    } catch (NumberFormatException e) {
+                        throw handleAuthErrorScenario(ERROR_CODE_ERROR_INVALID_CLAIM_VALUE, context, e);
                     }
                 }
-            }
-            if (allowedResendAttemptsCount != 0 &&
-                    scenario == AuthenticatorConstants.AuthenticationScenarios.RESEND_OTP) {
-                otpResendCount++;
-                shouldUpdateUserClaim = true;
+
+                // Get last successful resend timestamp (if any)
+                String lastResendTimestamp =
+                        getUserClaimValueFromUserStore(EMAIL_OTP_LAST_SENT_TIME_CLAIM, mappedLocalUser,
+                                ERROR_CODE_ERROR_GETTING_LAST_RESEND_TIME, context);
+                if (otpResendCount >= allowedResendAttemptsCount) {
+                    // Convert block time (minutes) to milliseconds
+                    int otpResendBlockTimeMinutes = getOTPResendBlockDuration(applicationTenantDomain, context);
+                    if (StringUtils.isNotBlank(lastResendTimestamp)) {
+                        long lastResend = Long.parseLong(lastResendTimestamp);
+                        long now = System.currentTimeMillis();
+                        long blockTimeMillis = otpResendBlockTimeMinutes * 60_000L; // MINUTES → MILLIS
+                        boolean withinBlockWindow = (now - lastResend) < blockTimeMillis;
+
+                        if (withinBlockWindow) {
+                            handleOTPResendCountExceededScenario(request, response, context);
+                            return;
+                        } else {
+                            otpResendCount = 0;
+                            shouldUpdateUserClaim = true;
+                        }
+                    }
+                }
+                if (scenario == AuthenticatorConstants.AuthenticationScenarios.RESEND_OTP) {
+                    otpResendCount++;
+                    shouldUpdateUserClaim = true;
+                }
             }
 
             sendEmailOtp(email, applicationTenantDomain, authenticatedUserFromContext, scenario, context);
@@ -342,7 +349,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
                 Map<String, String> claimMap = new HashMap<>();
                 claimMap.put(EMAIL_OTP_RESEND_ATTEMPTS_CLAIM, String.valueOf((otpResendCount)));
                 claimMap.put(EMAIL_OTP_LAST_SENT_TIME_CLAIM, String.valueOf(System.currentTimeMillis()));
-                setUserClaimValueFromUserStore(claimMap, authenticatedUserFromContext, context);
+                setUserClaimValueFromUserStore(claimMap, mappedLocalUser, context);
             }
             publishPostEmailOTPGeneratedEvent(authenticatedUserFromContext, request, context);
             redirectToEmailOTPLoginPage(authenticatedUserFromContext.getUserName(), email, applicationTenantDomain,
@@ -364,6 +371,32 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
 
         return Optional.ofNullable(getUser(authenticatedUser))
                 .map(AuthenticatedUser::new);
+    }
+
+    /**
+     * Check whether the user exists in the user store.
+     *
+     * @param authenticatedUser Authenticated user.
+     * @param context          Authentication context.
+     * @return True if the user exists, false otherwise.
+     *
+     * @throws AuthenticationFailedException In case of an error while checking user existence.
+     */
+    private boolean isUserExists(AuthenticatedUser authenticatedUser, AuthenticationContext context)
+            throws AuthenticationFailedException {
+
+        if (authenticatedUser.isFederatedUser()) {
+            UserStoreManager userStoreManager = getUserStoreManager(authenticatedUser, context);
+            try {
+                return userStoreManager.isExistingUser(
+                        MultitenantUtils.getTenantAwareUsername(authenticatedUser.toFullQualifiedUsername()));
+            } catch (UserStoreException e) {
+                throw handleAuthErrorScenario(ERROR_CODE_ERROR_CHECKING_USER_EXISTENCE, e, context,
+                        org.wso2.carbon.identity.auth.otp.core.util.AuthenticatorUtils.maskIfRequired(
+                                authenticatedUser.getUserName()));
+            }
+        }
+        return true;
     }
 
     private void handleOTPResendCountExceededScenario(HttpServletRequest request, HttpServletResponse response,
