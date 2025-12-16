@@ -373,6 +373,15 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
                 .map(AuthenticatedUser::new);
     }
 
+    /**
+     * Check whether the user exists in the user store.
+     *
+     * @param authenticatedUser Authenticated user.
+     * @param context          Authentication context.
+     * @return True if the user exists, false otherwise.
+     *
+     * @throws AuthenticationFailedException In case of an error while checking user existence.
+     */
     private boolean isUserExists(AuthenticatedUser authenticatedUser, AuthenticationContext context)
             throws AuthenticationFailedException {
 
