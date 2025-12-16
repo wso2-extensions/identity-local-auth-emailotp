@@ -241,7 +241,9 @@ public class AuthenticatorConstants {
                 "Error occurred while getting last resend time for user: %s"),
         ERROR_CODE_ERROR_UPDATING_USER_CLAIMS("65032",
                 "Error occurred while updating the claims for user: %s"),
-        ERROR_CODE_ERROR_INVALID_CLAIM_VALUE("65033", "Invalid claim value provided");
+        ERROR_CODE_ERROR_INVALID_CLAIM_VALUE("65033", "Invalid claim value provided"),
+        ERROR_CODE_ERROR_CHECKING_USER_EXISTENCE("65034",
+                "Error occurred while checking existence of user: %s");
 
 
         private final String code;
