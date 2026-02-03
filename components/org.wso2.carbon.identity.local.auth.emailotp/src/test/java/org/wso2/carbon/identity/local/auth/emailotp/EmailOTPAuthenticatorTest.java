@@ -454,6 +454,62 @@ public class EmailOTPAuthenticatorTest {
                 AuthenticatorConstants.IS_REDIRECT_TO_EMAIL_OTP)))));
     }
 
+    @Test(description = "Test case for process() method when Email OTP is the first step " +
+            "but not the subject identifier step. This should prompt the identifier (IDF) page.")
+    public void testProcessWithEmailOTPAsFirstStepAndSecondStepAsSubjectIdentifier()
+            throws Exception {
+
+        setStepConfigWithEmailOTPAsFirstStepAndSubjectIdentifierAsSecondStep();
+
+        when(ConfigurationFacade.getInstance()).thenReturn(configurationFacade);
+        when(configurationFacade.getAuthenticationEndpointURL()).thenReturn(DUMMY_LOGIN_PAGE_URL);
+
+        // No username is provided in the request (initial request).
+        when(httpServletRequest.getParameter(AuthenticatorConstants.USER_NAME)).thenReturn(null);
+
+        AuthenticatorFlowStatus status = emailOTPAuthenticator.process(httpServletRequest, httpServletResponse,
+                context);
+
+        // Verify that the flow is incomplete and the user is being prompted for identifier.
+        assertEquals(status, AuthenticatorFlowStatus.INCOMPLETE);
+        Assert.assertTrue((Boolean) context.getProperty(IS_IDF_INITIATED_FROM_AUTHENTICATOR),
+                "Expected the authenticator to initiate IDF (Identifier First) flow.");
+    }
+
+    private void setStepConfigWithEmailOTPAsFirstStepAndSubjectIdentifierAsSecondStep() {
+
+        Map<Integer, StepConfig> stepConfigMap = new HashMap<>();
+
+        // Step 1: Email OTP authenticator (NOT subject identifier step).
+        StepConfig emailOTPStep = new StepConfig();
+        AuthenticatorConfig emailOTPAuthConfig = new AuthenticatorConfig();
+        emailOTPAuthConfig.setName(EMAIL_OTP_AUTHENTICATOR_NAME);
+        List<AuthenticatorConfig> emailOTPAuthenticatorList = new ArrayList<>();
+        emailOTPAuthenticatorList.add(emailOTPAuthConfig);
+        emailOTPStep.setAuthenticatorList(emailOTPAuthenticatorList);
+        emailOTPStep.setSubjectAttributeStep(false);
+        stepConfigMap.put(1, emailOTPStep);
+
+        // Step 2: Another authenticator (subject identifier step)
+        StepConfig secondStep = new StepConfig();
+        AuthenticatorConfig basicAuthConfig = new AuthenticatorConfig();
+        basicAuthConfig.setName("BasicAuthenticator");
+        List<AuthenticatorConfig> basicAuthenticatorList = new ArrayList<>();
+        basicAuthenticatorList.add(basicAuthConfig);
+        secondStep.setAuthenticatorList(basicAuthenticatorList);
+        secondStep.setSubjectAttributeStep(true); // This is the subject identifier step
+        stepConfigMap.put(2, secondStep);
+
+        SequenceConfig sequenceConfig = new SequenceConfig();
+        sequenceConfig.setStepMap(stepConfigMap);
+        context.setSequenceConfig(sequenceConfig);
+        context.setCurrentStep(1); // Currently executing step 1 (Email OTP)
+
+        ApplicationConfig applicationConfig = mock(ApplicationConfig.class);
+        when(applicationConfig.isSaaSApp()).thenReturn(false);
+        context.getSequenceConfig().setApplicationConfig(applicationConfig);
+    }
+
     /**
      * Set email OTP authenticator as first factor in step config map
      *
