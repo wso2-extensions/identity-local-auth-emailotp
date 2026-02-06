@@ -144,9 +144,9 @@
             </dependency>
             <dependency>
                 <groupId>org.mockito</groupId>
-                <artifactId>mockito-inline</artifactId>
+                <artifactId>mockito-core</artifactId>
                 <scope>test</scope>
-                <version>${mockito-inline.version}</version>
+                <version>${mockito-core.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.github.spotbugs</groupId>
@@ -282,11 +282,12 @@
             </plugin>
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.14.1</version>
                 <inherited>true</inherited>
-                <configuration>
+                 <configuration>
                     <encoding>UTF-8</encoding>
-                    <source>1.8</source>
-                    <target>1.8</target>
+                    <source>21</source>
+                    <target>21</target>
                 </configuration>
             </plugin>
             <plugin>
@@ -320,7 +321,6 @@
         <imp.pkg.version.javax.servlet>[3.1.0, 4.0.0)</imp.pkg.version.javax.servlet>
         <encoder.wso2.import.version.range>[1.2.0, 2.0.0)</encoder.wso2.import.version.range>
         <identity.auth.otp.commons.version.range>[1.0.0, 2.0.0)</identity.auth.otp.commons.version.range>
-
         <carbon.kernel.version>4.9.10</carbon.kernel.version>
         <carbon.identity.framework.version>7.8.550</carbon.identity.framework.version>
         <carbon.identity.governance.version>1.11.122</carbon.identity.governance.version>
@@ -329,16 +329,15 @@
         <carbon.identity.event.handler.notification.version>1.9.45</carbon.identity.event.handler.notification.version>
         <identity.auth.otp.commons.version>1.0.22</identity.auth.otp.commons.version>
         <owasp.encoder.version>1.2.0.wso2v1</owasp.encoder.version>
-        <mockito-inline.version>3.8.0</mockito-inline.version>
-
+        <mockito-core.version>5.3.1</mockito-core.version>
+        <maven.surefire.plugin.version>3.1.2</maven.surefire.plugin.version>
         <maven.checkstyleplugin.version>3.1.0</maven.checkstyleplugin.version>
         <findsecbugs-plugin.version>1.10.1</findsecbugs-plugin.version>
-        <spotbugs-maven-plugin.version>4.7.2.1</spotbugs-maven-plugin.version>
-
-        <maven.bundle.plugin.version>3.2.0</maven.bundle.plugin.version>
+        <spotbugs-maven-plugin.version>4.9.8.2</spotbugs-maven-plugin.version>
+        <maven.bundle.plugin.version>5.1.9</maven.bundle.plugin.version>
         <maven.buildnumber.plugin.version>1.4</maven.buildnumber.plugin.version>
-        <jacoco.version>0.8.2</jacoco.version>
+        <jacoco.version>0.8.12</jacoco.version>
         <carbon.p2.plugin.version>1.5.3</carbon.p2.plugin.version>
-        <spotbugs-annotations.version>4.7.3</spotbugs-annotations.version>
+        <spotbugs-annotations.version>4.9.8</spotbugs-annotations.version>
     </properties>
 </project>
