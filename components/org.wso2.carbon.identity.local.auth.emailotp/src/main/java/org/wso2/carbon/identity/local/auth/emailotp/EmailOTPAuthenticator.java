@@ -1395,7 +1395,6 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             throws AuthenticationFailedException {
 
         Map<Integer, StepConfig> stepConfigMap = context.getSequenceConfig().getStepMap();
-        StepConfig currentStepConfig = stepConfigMap.get(context.getCurrentStep());
         for (StepConfig stepConfig : stepConfigMap.values()) {
             AuthenticatedUser user = stepConfig.getAuthenticatedUser();
             if (stepConfig.isSubjectAttributeStep() && user != null) {
@@ -1410,16 +1409,11 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             }
         }
 
-        if (context.getLastAuthenticatedUser() != null
-                && context.getLastAuthenticatedUser().getUserName() != null) {
+        if (context.getLastAuthenticatedUser() != null && context.getLastAuthenticatedUser().getUserName() != null) {
             return context.getLastAuthenticatedUser();
         }
 
-        if (currentStepConfig.isSubjectAttributeStep()) {
-            return null;
-        }
-        // If authenticated user cannot be found from the previous steps.
-        throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_NO_USER_FOUND, context);
+        return null;
     }
 
     /**
