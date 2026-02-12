@@ -51,7 +51,9 @@ public class AuthenticatorDataHolder {
     public static RealmService getRealmService() {
 
         if (realmService == null) {
-            throw new RuntimeException("RealmService was not set during the Email OTP service component startup");
+            throw new IllegalStateException(
+                    "RealmService was not set during the Email OTP service "
+                            + "component startup");
         }
         return realmService;
     }
@@ -74,7 +76,9 @@ public class AuthenticatorDataHolder {
     public static AccountLockService getAccountLockService() {
 
         if (accountLockService == null) {
-            throw new RuntimeException("AccountLockService was not set during the Email OTP service component startup");
+            throw new IllegalStateException(
+                    "AccountLockService was not set during the Email OTP service "
+                            + "component startup");
         }
         return accountLockService;
     }
@@ -97,7 +101,9 @@ public class AuthenticatorDataHolder {
     public static IdentityGovernanceService getIdentityGovernanceService() {
 
         if (identityGovernanceService == null) {
-            throw new RuntimeException("IdentityGovernanceService not available. Component is not started properly.");
+            throw new IllegalStateException(
+                    "IdentityGovernanceService not available. Component is not "
+                            + "started properly.");
         }
         return identityGovernanceService;
     }
@@ -110,7 +116,9 @@ public class AuthenticatorDataHolder {
     public static IdpManager getIdpManager() {
 
         if (idpManager == null) {
-            throw new RuntimeException("IdpManager not available. Component is not started properly.");
+            throw new IllegalStateException(
+                    "IdpManager not available. Component is not "
+                            + "started properly.");
         }
         return idpManager;
     }

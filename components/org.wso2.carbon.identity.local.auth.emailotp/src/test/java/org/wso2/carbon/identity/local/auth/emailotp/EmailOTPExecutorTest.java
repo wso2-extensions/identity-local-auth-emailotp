@@ -35,6 +35,7 @@ import org.wso2.carbon.identity.flow.execution.engine.model.FlowExecutionContext
 import org.wso2.carbon.identity.flow.execution.engine.model.FlowUser;
 import org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants;
 import org.wso2.carbon.identity.local.auth.emailotp.constant.ExecutorConstants;
+import org.wso2.carbon.identity.local.auth.emailotp.internal.AuthenticatorDataHolder;
 import org.wso2.carbon.identity.local.auth.emailotp.util.CommonUtils;
 
 import java.lang.reflect.Field;
@@ -44,6 +45,7 @@ import java.util.List;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertThrows;
 import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.EMAIL_ADDRESS_CLAIM;
 import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.USERNAME_CLAIM;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.CODE;
@@ -189,5 +191,10 @@ public class EmailOTPExecutorTest {
 
         Assert.assertEquals(codeKeyField.get(props), expectedCodeKey);
         Assert.assertEquals(templateTypeField.get(props), expectedTemplateType);
+
+        assertThrows(IllegalStateException.class, AuthenticatorDataHolder::getRealmService);
+        assertThrows(IllegalStateException.class, AuthenticatorDataHolder::getAccountLockService);
+        assertThrows(IllegalStateException.class, AuthenticatorDataHolder::getIdentityGovernanceService);
+        assertThrows(IllegalStateException.class, AuthenticatorDataHolder::getIdpManager);
     }
 }
