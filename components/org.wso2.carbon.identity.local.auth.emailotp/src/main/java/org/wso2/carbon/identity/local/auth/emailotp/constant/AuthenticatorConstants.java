@@ -110,6 +110,7 @@ public class AuthenticatorConstants {
     public static final String DISPLAY_USER_NAME = "Username";
     public static final String IS_REDIRECT_TO_EMAIL_OTP = "isRedirectToEmailOTP";
     public static final String CONF_SHOW_AUTH_FAILURE_REASON = "showAuthFailureReason";
+    public static final String MULTIPLE_USERS_ERROR_MESSAGE = "There are more than one user with the provided username";
 
     /**
      * Authenticator config related configurations.
