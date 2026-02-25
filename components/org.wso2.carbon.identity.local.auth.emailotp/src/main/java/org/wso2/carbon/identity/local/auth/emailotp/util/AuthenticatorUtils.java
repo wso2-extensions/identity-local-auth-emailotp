@@ -20,6 +20,8 @@ package org.wso2.carbon.identity.local.auth.emailotp.util;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.owasp.encoder.Encode;
 import org.wso2.carbon.identity.application.authentication.framework.context.AuthenticationContext;
 import org.wso2.carbon.identity.application.authentication.framework.exception.AuthenticationFailedException;
@@ -36,6 +38,7 @@ import org.wso2.carbon.identity.local.auth.emailotp.internal.AuthenticatorDataHo
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
 
@@ -47,13 +50,18 @@ import static org.wso2.carbon.identity.local.auth.emailotp.constant.Authenticato
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.EMAIL_OTP_PAGE;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.ERROR_PAGE;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.ErrorMessages.ERROR_CODE_GETTING_ACCOUNT_STATE;
+import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.MAXIMUM_RESEND_LIMIT;
+import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.MAXIMUM_RETRY_LIMIT;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.MULTI_OPTION_QUERY_PARAM;
+import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.SKIP_RESEND_BLOCK_TIME;
+import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.TERMINATE_ON_RESEND_LIMIT_EXCEEDED;
 
 /**
  * This class contains the utility method implementations.
  */
 public class AuthenticatorUtils {
 
+    private static final Log LOG = LogFactory.getLog(AuthenticatorUtils.class);
     /**
      * Check whether a given user account is locked.
      *
@@ -257,5 +265,98 @@ public class AuthenticatorUtils {
     private static boolean isURLRelative(String contextFromConfig) throws URISyntaxException {
 
         return !new URI(contextFromConfig).isAbsolute();
+    }
+
+    /**
+     * Get the maximum allowed retry attempts limit from the runtime parameters.
+     * If not found or invalid, return -1.
+     *
+     * @param runtimeParams Runtime parameters map.
+     * @return Maximum allowed retry attempts limit.
+     */
+    public static int getMaximumAllowedRetryAttemptsLimit(Map<String, String> runtimeParams) {
+
+        if (runtimeParams == null) {
+            return -1;
+        }
+
+        String value = runtimeParams.get(MAXIMUM_RETRY_LIMIT);
+        if (value == null) {
+            LOG.debug("Maximum allowed retry attempts limit not found in runtime parameters. Returning -1.");
+            return -1;
+        }
+
+        try {
+            int retryLimit = Integer.parseInt(value);
+            if (retryLimit < 0) {
+                LOG.debug("Negative value provided for maximum allowed retry attempts limit. Returning -1.");
+                return -1;
+            }
+            return retryLimit;
+        } catch (NumberFormatException e) {
+            LOG.debug("Invalid value provided for maximum allowed retry attempts limit. Returning -1.", e);
+            return -1;
+        }
+    }
+
+    /**
+     * Get the maximum allowed resend attempts limit from the runtime parameters.
+     * If not found or invalid, return -1.
+     *
+     * @param runtimeParams Runtime parameters map.
+     * @return Maximum allowed resend attempts limit.
+     */
+    public static int getMaximumAllowedResendAttemptsLimit(Map<String, String> runtimeParams) {
+
+        if (runtimeParams == null) {
+            return -1;
+        }
+
+        String value = runtimeParams.get(MAXIMUM_RESEND_LIMIT);
+        if (value == null) {
+            LOG.debug("Maximum allowed resend attempts limit not found in runtime parameters. Returning -1.");
+            return -1;
+        }
+
+        try {
+            int resendLimit = Integer.parseInt(value);
+            if (resendLimit < 0) {
+                LOG.debug("Negative value provided for maximum allowed resend attempts limit. Returning -1.");
+                return -1;
+            }
+            return resendLimit;
+        } catch (NumberFormatException e) {
+            LOG.debug("Invalid value provided for maximum allowed resend attempts limit. Returning -1.", e);
+            return -1;
+        }
+    }
+
+    /**
+     * Get the flag indicating whether to skip applying the resend block time from the runtime parameters.
+     *
+     * @param runtimeParams Runtime parameters map.
+     * @return Flag indicating whether to skip applying the resend block time.
+     */
+    public static String getSkipResendBlockTimeParam(Map<String, String> runtimeParams) {
+
+        if (runtimeParams != null) {
+            return runtimeParams.get(SKIP_RESEND_BLOCK_TIME);
+        }
+        return null;
+    }
+
+    /**
+     * Get the flag indicating whether to terminate authentication on resend limit exceeded from the runtime parameters.
+     * If not found, return null.
+     *
+     * @param runtimeParams Runtime parameters map.
+     * @return Flag indicating whether to terminate authentication on resend limit exceeded.
+     */
+    public static String getTerminateOnResendLimitExceededParam(Map<String, String> runtimeParams) {
+
+        if (runtimeParams != null) {
+            return runtimeParams.get(TERMINATE_ON_RESEND_LIMIT_EXCEEDED);
+        }
+        return null;
     }
 }

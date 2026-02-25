@@ -93,14 +93,18 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
+import static org.wso2.carbon.identity.application.authentication.framework.AbstractApplicationAuthenticator.SKIP_RETRY_FROM_AUTHENTICATOR;
 import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.EMAIL_ADDRESS_CLAIM;
 import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.USERNAME_CLAIM;
+import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.CODE;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.Claims.EMAIL_OTP_LAST_SENT_TIME_CLAIM;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.Claims.EMAIL_OTP_RESEND_ATTEMPTS_CLAIM;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.Claims.LOCALE_CLAIM;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.EMAIL_OTP_AUTHENTICATOR_NAME;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.HIDE_USER_EXISTENCE_CONFIG;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.IS_IDF_INITIATED_FROM_AUTHENTICATOR;
+import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.OTP_RESEND_ATTEMPTS;
+import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.OTP_RETRY_ATTEMPTS;
 
 /**
  * Class containing the test cases for EmailOTPAuthenticatorTest class.
@@ -585,6 +589,18 @@ public class EmailOTPAuthenticatorTest {
                 )
         ).thenReturn(String.valueOf(maxAllowed));
 
+        // Required by isUserBasedOTPResendBlockingEnabled
+        authenticatorUtils.when(() ->
+                AuthenticatorUtils.getSkipResendBlockTimeParam(any()))
+                .thenReturn("false");
+        // Disable context-based resend/retry blocking
+        authenticatorUtils.when(() ->
+                AuthenticatorUtils.getMaximumAllowedResendAttemptsLimit(any()))
+                .thenReturn(-1);
+        authenticatorUtils.when(() ->
+                AuthenticatorUtils.getMaximumAllowedRetryAttemptsLimit(any()))
+                .thenReturn(-1);
+
         authenticatorUtils.when(() ->
                         AuthenticatorUtils.getEmailOTPLoginPageUrl(any(), anyString()))
                 .thenReturn("https://localhost:9443/authenticationendpoint/email-otp.jsp");
@@ -786,5 +802,600 @@ public class EmailOTPAuthenticatorTest {
         captchaUtil.close();
         userCoreUtil.close();
         mockLoggerUtils.close();
+    }
+
+    // -------------------------------------------------------------------------
+    // Context-based resend limit control tests
+    // -------------------------------------------------------------------------
+
+    @DataProvider(name = "contextResendLimitDataProvider")
+    public Object[][] contextResendLimitDataProvider() {
+
+        // currentContextAttempts, maxAllowedByRuntime, shouldBlock
+        return new Object[][]{
+                // Not yet at limit → OTP sent, redirected to login page
+                {0, 3, false},
+                {2, 3, false},
+                // At limit → blocked, no redirect to OTP page
+                {3, 3, true},
+                {5, 3, true},
+        };
+    }
+
+    @Test(dataProvider = "contextResendLimitDataProvider",
+            description = "Test context-based OTP resend limit: when OTP_RESEND_ATTEMPTS in context reaches "
+                    + "the runtime-param limit the authenticator must NOT redirect to the OTP page.")
+    public void testContextBasedResendLimitBlocking(int currentContextAttempts, int maxAllowed,
+                                                    boolean shouldBlock) throws Exception {
+
+        setAuthenticatorConfig();
+        configureAuthenticatorDataHolder();
+        configureAuthenticatedUser(false);
+
+        context.setTenantDomain(TENANT_DOMAIN);
+        context.setRetrying(true);
+        context.setCurrentAuthenticator(EMAIL_OTP_AUTHENTICATOR_NAME);
+
+        // Pre-set context resend counter
+        context.setProperty(OTP_RESEND_ATTEMPTS, currentContextAttempts);
+
+        when(httpServletRequest.getParameter(AuthenticatorConstants.RESEND)).thenReturn("true");
+
+        // Disable user-based resend blocking by returning 0 for the resend attempts config
+        authenticatorUtils.when(() ->
+                AuthenticatorUtils.getEmailAuthenticatorConfig(
+                        AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_RESEND_ATTEMPTS_COUNT, TENANT_DOMAIN))
+                .thenReturn("0");
+
+        // Return maxAllowed via runtime param (context-based)
+        authenticatorUtils.when(() ->
+                AuthenticatorUtils.getMaximumAllowedResendAttemptsLimit(any()))
+                .thenReturn(maxAllowed);
+        // Retry limit disabled
+        authenticatorUtils.when(() ->
+                AuthenticatorUtils.getMaximumAllowedRetryAttemptsLimit(any()))
+                .thenReturn(-1);
+        // skipResendBlockTime = false (user-based blocking is not skipped)
+        authenticatorUtils.when(() ->
+                AuthenticatorUtils.getSkipResendBlockTimeParam(any()))
+                .thenReturn("false");
+
+        authenticatorUtils.when(() ->
+                AuthenticatorUtils.getEmailOTPLoginPageUrl(any(), anyString()))
+                .thenReturn("https://localhost:9443/authenticationendpoint/email-otp.jsp");
+        authenticatorUtils.when(() ->
+                AuthenticatorUtils.getEmailOTPErrorPageUrl(any(), anyString()))
+                .thenReturn("https://localhost:9443/authenticationendpoint/email_otp_error.do");
+
+        when(realmService.getTenantUserRealm(TENANT_ID)).thenReturn(userRealm);
+        when(userRealm.getUserStoreManager()).thenReturn(userStoreManager);
+        when(userStoreManager.getUserClaimValues(any(), any(), any())).thenReturn(new HashMap<>());
+
+        when(FileBasedConfigurationBuilder.getInstance()).thenReturn(fileBasedConfigurationBuilder);
+        AuthenticatorConfig authenticatorConfig = setAuthenticatorConfig();
+        when(fileBasedConfigurationBuilder.getAuthenticatorBean(anyString())).thenReturn(authenticatorConfig);
+        when(CaptchaDataHolder.getInstance()).thenReturn(captchaDataHolder);
+        when(IdentityConfigParser.getInstance()).thenReturn(identityConfigParser);
+        when(identityConfigParser.getConfiguration()).thenReturn(new HashMap<>());
+
+        Method method = emailOTPAuthenticator.getClass()
+                .getDeclaredMethod("initiateAuthenticationRequest",
+                        HttpServletRequest.class, HttpServletResponse.class, AuthenticationContext.class);
+        method.setAccessible(true);
+        try {
+            method.invoke(emailOTPAuthenticator, httpServletRequest, httpServletResponse, context);
+        } catch (InvocationTargetException ignored) {
+        }
+
+        if (shouldBlock) {
+            Assert.assertFalse(
+                    Boolean.parseBoolean(
+                            String.valueOf(context.getProperty(AuthenticatorConstants.IS_REDIRECT_TO_EMAIL_OTP))),
+                    "Should NOT redirect to OTP page when context-based resend limit is exceeded.");
+        } else {
+            Assert.assertTrue(
+                    Boolean.parseBoolean(
+                            String.valueOf(context.getProperty(AuthenticatorConstants.IS_REDIRECT_TO_EMAIL_OTP))),
+                    "Should redirect to OTP page when context-based resend limit is NOT exceeded.");
+        }
+    }
+
+    @Test(description = "Test that OTP_RESEND_ATTEMPTS in context is incremented on each successful resend "
+            + "when user-based blocking is disabled and context-based limit is active.")
+    public void testContextResendCounterIncrement() throws Exception {
+
+        setAuthenticatorConfig();
+        configureAuthenticatorDataHolder();
+        configureAuthenticatedUser(false);
+
+        context.setTenantDomain(TENANT_DOMAIN);
+        context.setRetrying(true);
+        context.setCurrentAuthenticator(EMAIL_OTP_AUTHENTICATOR_NAME);
+        context.setProperty(OTP_RESEND_ATTEMPTS, 1);
+
+        when(httpServletRequest.getParameter(AuthenticatorConstants.RESEND)).thenReturn("true");
+
+        // Disable user-based blocking
+        authenticatorUtils.when(() ->
+                AuthenticatorUtils.getEmailAuthenticatorConfig(
+                        AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_RESEND_ATTEMPTS_COUNT, TENANT_DOMAIN))
+                .thenReturn("0");
+        // Context limit = 5 (not yet reached)
+        authenticatorUtils.when(() ->
+                AuthenticatorUtils.getMaximumAllowedResendAttemptsLimit(any()))
+                .thenReturn(5);
+        authenticatorUtils.when(() ->
+                AuthenticatorUtils.getMaximumAllowedRetryAttemptsLimit(any()))
+                .thenReturn(-1);
+        authenticatorUtils.when(() ->
+                AuthenticatorUtils.getSkipResendBlockTimeParam(any()))
+                .thenReturn("false");
+        authenticatorUtils.when(() ->
+                AuthenticatorUtils.getEmailOTPLoginPageUrl(any(), anyString()))
+                .thenReturn("https://localhost:9443/authenticationendpoint/email-otp.jsp");
+
+        when(realmService.getTenantUserRealm(TENANT_ID)).thenReturn(userRealm);
+        when(userRealm.getUserStoreManager()).thenReturn(userStoreManager);
+        when(userStoreManager.getUserClaimValues(any(), any(), any())).thenReturn(new HashMap<>());
+        when(FileBasedConfigurationBuilder.getInstance()).thenReturn(fileBasedConfigurationBuilder);
+        AuthenticatorConfig resendCounterIncrementConfig = setAuthenticatorConfig();
+        when(fileBasedConfigurationBuilder.getAuthenticatorBean(anyString())).thenReturn(resendCounterIncrementConfig);
+        when(CaptchaDataHolder.getInstance()).thenReturn(captchaDataHolder);
+        when(IdentityConfigParser.getInstance()).thenReturn(identityConfigParser);
+        when(identityConfigParser.getConfiguration()).thenReturn(new HashMap<>());
+
+        Method contextResendCounterIncrementMethod = emailOTPAuthenticator.getClass()
+                .getDeclaredMethod("initiateAuthenticationRequest",
+                        HttpServletRequest.class, HttpServletResponse.class, AuthenticationContext.class);
+        contextResendCounterIncrementMethod.setAccessible(true);
+        try {
+            contextResendCounterIncrementMethod.invoke(
+                    emailOTPAuthenticator, httpServletRequest, httpServletResponse, context);
+        } catch (InvocationTargetException ignored) {
+        }
+
+        // Counter should have been incremented from 1 → 2
+        Assert.assertEquals(context.getProperty(OTP_RESEND_ATTEMPTS), 2,
+                "OTP_RESEND_ATTEMPTS context counter should be incremented after a successful resend.");
+    }
+
+    @Test(description = "Test that the terminateOnResendLimitExceeded runtime param causes an "
+            + "AuthenticationFailedException (flow termination) instead of a redirect to error page.")
+    public void testTerminateOnContextResendLimitExceeded() throws Exception {
+
+        setAuthenticatorConfig();
+        configureAuthenticatorDataHolder();
+        configureAuthenticatedUser(false);
+
+        context.setTenantDomain(TENANT_DOMAIN);
+        context.setRetrying(true);
+        context.setCurrentAuthenticator(EMAIL_OTP_AUTHENTICATOR_NAME);
+        // Already at limit
+        context.setProperty(OTP_RESEND_ATTEMPTS, 3);
+
+        when(httpServletRequest.getParameter(AuthenticatorConstants.RESEND)).thenReturn("true");
+
+        // Disable user-based blocking
+        authenticatorUtils.when(() ->
+                AuthenticatorUtils.getEmailAuthenticatorConfig(
+                        AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_RESEND_ATTEMPTS_COUNT, TENANT_DOMAIN))
+                .thenReturn("0");
+        authenticatorUtils.when(() ->
+                AuthenticatorUtils.getMaximumAllowedResendAttemptsLimit(any()))
+                .thenReturn(3);
+        authenticatorUtils.when(() ->
+                AuthenticatorUtils.getMaximumAllowedRetryAttemptsLimit(any()))
+                .thenReturn(-1);
+        authenticatorUtils.when(() ->
+                AuthenticatorUtils.getSkipResendBlockTimeParam(any()))
+                .thenReturn("false");
+        // Enable terminate-on-resend-limit-exceeded
+        authenticatorUtils.when(() ->
+                AuthenticatorUtils.getTerminateOnResendLimitExceededParam(any()))
+                .thenReturn("true");
+
+        when(realmService.getTenantUserRealm(TENANT_ID)).thenReturn(userRealm);
+        when(userRealm.getUserStoreManager()).thenReturn(userStoreManager);
+        when(userStoreManager.getUserClaimValues(any(), any(), any())).thenReturn(new HashMap<>());
+        when(FileBasedConfigurationBuilder.getInstance()).thenReturn(fileBasedConfigurationBuilder);
+        AuthenticatorConfig terminateResendConfig = setAuthenticatorConfig();
+        when(fileBasedConfigurationBuilder.getAuthenticatorBean(anyString())).thenReturn(terminateResendConfig);
+        when(IdentityConfigParser.getInstance()).thenReturn(identityConfigParser);
+        when(identityConfigParser.getConfiguration()).thenReturn(new HashMap<>());
+
+        Method terminateResendMethod = emailOTPAuthenticator.getClass()
+                .getDeclaredMethod("initiateAuthenticationRequest",
+                        HttpServletRequest.class, HttpServletResponse.class, AuthenticationContext.class);
+        terminateResendMethod.setAccessible(true);
+
+        try {
+            terminateResendMethod.invoke(emailOTPAuthenticator, httpServletRequest, httpServletResponse, context);
+            Assert.fail("Expected AuthenticationFailedException to be thrown when terminateOnResendLimitExceeded=true");
+        } catch (InvocationTargetException e) {
+            Assert.assertTrue(e.getCause() instanceof AuthenticationFailedException,
+                    "Expected AuthenticationFailedException when terminateOnResendLimitExceeded is true.");
+        }
+
+        // isRetrying must be set to false (flow terminated)
+        Assert.assertFalse(context.isRetrying(),
+                "isRetrying should be false when resend limit exceeded with terminateFlow=true.");
+    }
+
+    @Test(description = "Test that skipResendBlockTime=true disables user-based OTP resend blocking "
+            + "even when the resend count in user store is at or above the configured maximum.")
+    public void testSkipResendBlockTimeDisablesUserBasedBlocking() throws Exception {
+
+        setAuthenticatorConfig();
+        configureAuthenticatorDataHolder();
+        configureAuthenticatedUser(false);
+
+        context.setTenantDomain(TENANT_DOMAIN);
+        context.setRetrying(true);
+        context.setCurrentAuthenticator(EMAIL_OTP_AUTHENTICATOR_NAME);
+        when(httpServletRequest.getParameter(AuthenticatorConstants.RESEND)).thenReturn("true");
+
+        Map<String, String> claimMap = new HashMap<>();
+        // Resend count in store exceeds configured max
+        claimMap.put(EMAIL_OTP_RESEND_ATTEMPTS_CLAIM, "10");
+        claimMap.put(EMAIL_OTP_LAST_SENT_TIME_CLAIM, String.valueOf(System.currentTimeMillis()));
+        claimMap.put(FrameworkConstants.EMAIL_ADDRESS_CLAIM, EMAIL_ADDRESS);
+
+        // User-based max is 3 — would normally block
+        authenticatorUtils.when(() ->
+                AuthenticatorUtils.getEmailAuthenticatorConfig(
+                        AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_RESEND_ATTEMPTS_COUNT, TENANT_DOMAIN))
+                .thenReturn("3");
+        // Skip the block window check
+        authenticatorUtils.when(() ->
+                AuthenticatorUtils.getSkipResendBlockTimeParam(any()))
+                .thenReturn("true");
+        // No context-based limit
+        authenticatorUtils.when(() ->
+                AuthenticatorUtils.getMaximumAllowedResendAttemptsLimit(any()))
+                .thenReturn(-1);
+        authenticatorUtils.when(() ->
+                AuthenticatorUtils.getMaximumAllowedRetryAttemptsLimit(any()))
+                .thenReturn(-1);
+        authenticatorUtils.when(() ->
+                AuthenticatorUtils.getEmailOTPLoginPageUrl(any(), anyString()))
+                .thenReturn("https://localhost:9443/authenticationendpoint/email-otp.jsp");
+
+        when(realmService.getTenantUserRealm(TENANT_ID)).thenReturn(userRealm);
+        when(userRealm.getUserStoreManager()).thenReturn(userStoreManager);
+        when(userStoreManager.getUserClaimValues(any(), any(), any())).thenReturn(claimMap);
+        when(FileBasedConfigurationBuilder.getInstance()).thenReturn(fileBasedConfigurationBuilder);
+        AuthenticatorConfig skipResendConfig = setAuthenticatorConfig();
+        when(fileBasedConfigurationBuilder.getAuthenticatorBean(anyString())).thenReturn(skipResendConfig);
+        when(CaptchaDataHolder.getInstance()).thenReturn(captchaDataHolder);
+        when(IdentityConfigParser.getInstance()).thenReturn(identityConfigParser);
+        when(identityConfigParser.getConfiguration()).thenReturn(new HashMap<>());
+
+        Method skipResendMethod = emailOTPAuthenticator.getClass()
+                .getDeclaredMethod("initiateAuthenticationRequest",
+                        HttpServletRequest.class, HttpServletResponse.class, AuthenticationContext.class);
+        skipResendMethod.setAccessible(true);
+        try {
+            skipResendMethod.invoke(emailOTPAuthenticator, httpServletRequest, httpServletResponse, context);
+        } catch (InvocationTargetException ignored) {
+        }
+
+        // When skip=true user-based blocking is bypassed → OTP is sent → redirect to OTP page
+        Assert.assertTrue(
+                Boolean.parseBoolean(
+                        String.valueOf(context.getProperty(AuthenticatorConstants.IS_REDIRECT_TO_EMAIL_OTP))),
+                "OTP page redirect should happen when skipResendBlockTime=true bypasses user-based blocking.");
+    }
+
+    // -------------------------------------------------------------------------
+    // Context-based retry limit control tests
+    // -------------------------------------------------------------------------
+
+    @DataProvider(name = "contextRetryLimitDataProvider")
+    public Object[][] contextRetryLimitDataProvider() {
+
+        // currentContextRetryAttempts (before this submission), maxAllowed, expectRetryLimitExceeded
+        return new Object[][]{
+                {0, 3, false},  // First failure — after increment becomes 1, still within limit
+                {2, 3, true},   // Third failure — after increment becomes 3, equals limit → blocked
+                {3, 3, true},   // Fourth failure — after increment becomes 4, exceeds limit
+                {5, 3, true},   // Well past limit
+        };
+    }
+
+    @Test(dataProvider = "contextRetryLimitDataProvider",
+            description = "Test context-based retry limit: when OTP_RETRY_ATTEMPTS reaches the runtime-param "
+                    + "limit the SKIP_RETRY_FROM_AUTHENTICATOR flag must be set in context.")
+    public void testContextBasedRetryLimitBlocking(int currentRetryAttempts, int maxAllowed,
+                                                   boolean expectRetryLimitSignalled) throws Exception {
+
+        setAuthenticatorConfig();
+        configureAuthenticatorDataHolder();
+        configureAuthenticatedUser(false);
+
+        context.setTenantDomain(TENANT_DOMAIN);
+        context.setRetrying(true);
+        context.setCurrentAuthenticator(EMAIL_OTP_AUTHENTICATOR_NAME);
+        // Simulate a wrong OTP stored in context
+        context.setProperty(AuthenticatorConstants.OTP_TOKEN, "999999");
+        context.setProperty(AuthenticatorConstants.OTP_GENERATED_TIME, System.currentTimeMillis());
+        context.setProperty(AuthenticatorConstants.OTP_EXPIRED, Boolean.toString(false));
+        // Pre-set retry counter
+        context.setProperty(OTP_RETRY_ATTEMPTS, currentRetryAttempts);
+
+        // Submit a wrong OTP
+        when(httpServletRequest.getParameter(AuthenticatorConstants.RESEND)).thenReturn(null);
+        when(httpServletRequest.getParameter(CODE)).thenReturn("000000");
+        when(httpServletRequest.getParameterNames()).thenReturn(
+                Collections.enumeration(Collections.singletonList(CODE)));
+
+        authenticatorUtils.when(() ->
+                AuthenticatorUtils.getMaximumAllowedRetryAttemptsLimit(any()))
+                .thenReturn(maxAllowed);
+        authenticatorUtils.when(() ->
+                AuthenticatorUtils.isAccountLocked(any()))
+                .thenReturn(false);
+
+        when(realmService.getTenantUserRealm(TENANT_ID)).thenReturn(userRealm);
+        when(userRealm.getUserStoreManager()).thenReturn(userStoreManager);
+        when(userStoreManager.getUserClaimValues(any(), any(), any())).thenReturn(new HashMap<>());
+
+        Method method = emailOTPAuthenticator.getClass()
+                .getDeclaredMethod("processAuthenticationResponse",
+                        HttpServletRequest.class, HttpServletResponse.class, AuthenticationContext.class);
+        method.setAccessible(true);
+
+        try {
+            method.invoke(emailOTPAuthenticator, httpServletRequest, httpServletResponse, context);
+        } catch (InvocationTargetException ignored) {
+            // OTP_INVALID or OTP_EXPIRED exception is expected
+        }
+
+        if (expectRetryLimitSignalled) {
+            Assert.assertEquals(context.getProperty(SKIP_RETRY_FROM_AUTHENTICATOR), true,
+                    "SKIP_RETRY_FROM_AUTHENTICATOR should be set when retry limit is exceeded.");
+            Assert.assertEquals(context.getProperty(FrameworkConstants.AUTH_ERROR_CODE),
+                    FrameworkConstants.ERROR_STATUS_ALLOWED_RETRY_LIMIT_EXCEEDED,
+                    "AUTH_ERROR_CODE should signal retry limit exceeded.");
+        } else {
+            Assert.assertNotEquals(context.getProperty(SKIP_RETRY_FROM_AUTHENTICATOR),
+                    Boolean.TRUE,
+                    "SKIP_RETRY_FROM_AUTHENTICATOR should NOT be set when retry limit is not reached.");
+        }
+    }
+
+    @Test(description = "Test that OTP_RETRY_ATTEMPTS counter is incremented on each failed OTP submission.")
+    public void testContextRetryCounterIncrement() throws Exception {
+
+        setAuthenticatorConfig();
+        configureAuthenticatorDataHolder();
+        configureAuthenticatedUser(false);
+
+        context.setTenantDomain(TENANT_DOMAIN);
+        context.setRetrying(true);
+        context.setCurrentAuthenticator(EMAIL_OTP_AUTHENTICATOR_NAME);
+        context.setProperty(AuthenticatorConstants.OTP_TOKEN, "999999");
+        context.setProperty(AuthenticatorConstants.OTP_GENERATED_TIME, System.currentTimeMillis());
+        context.setProperty(AuthenticatorConstants.OTP_EXPIRED, Boolean.toString(false));
+        context.setProperty(OTP_RETRY_ATTEMPTS, 1);
+
+        when(httpServletRequest.getParameter(AuthenticatorConstants.RESEND)).thenReturn(null);
+        when(httpServletRequest.getParameter(CODE)).thenReturn("000000");
+        when(httpServletRequest.getParameterNames()).thenReturn(
+                Collections.enumeration(Collections.singletonList(CODE)));
+
+        // Retry limit disabled
+        authenticatorUtils.when(() ->
+                AuthenticatorUtils.getMaximumAllowedRetryAttemptsLimit(any()))
+                .thenReturn(-1);
+        authenticatorUtils.when(() ->
+                AuthenticatorUtils.isAccountLocked(any()))
+                .thenReturn(false);
+
+        when(realmService.getTenantUserRealm(TENANT_ID)).thenReturn(userRealm);
+        when(userRealm.getUserStoreManager()).thenReturn(userStoreManager);
+        when(userStoreManager.getUserClaimValues(any(), any(), any())).thenReturn(new HashMap<>());
+
+        Method method = emailOTPAuthenticator.getClass()
+                .getDeclaredMethod("processAuthenticationResponse",
+                        HttpServletRequest.class, HttpServletResponse.class, AuthenticationContext.class);
+        method.setAccessible(true);
+
+        try {
+            method.invoke(emailOTPAuthenticator, httpServletRequest, httpServletResponse, context);
+        } catch (InvocationTargetException ignored) {
+        }
+
+        // Counter must have been incremented 1 → 2
+        Assert.assertEquals(context.getProperty(OTP_RETRY_ATTEMPTS), 2,
+                "OTP_RETRY_ATTEMPTS context counter should be incremented after a failed OTP submission.");
+    }
+
+    @Test(description = "Test that OTP_RETRY_ATTEMPTS and OTP_RESEND_ATTEMPTS context counters are reset "
+            + "to 0 on successful OTP verification.")
+    public void testContextCountersResetOnSuccess() throws Exception {
+
+        setAuthenticatorConfig();
+        configureAuthenticatorDataHolder();
+        configureAuthenticatedUser(false);
+
+        context.setTenantDomain(TENANT_DOMAIN);
+        context.setRetrying(true);
+        context.setCurrentAuthenticator(EMAIL_OTP_AUTHENTICATOR_NAME);
+
+        String correctOtp = "123456";
+        context.setProperty(AuthenticatorConstants.OTP_TOKEN, correctOtp);
+        context.setProperty(AuthenticatorConstants.OTP_GENERATED_TIME, System.currentTimeMillis());
+        context.setProperty(AuthenticatorConstants.OTP_EXPIRED, Boolean.toString(false));
+        // Simulate some prior attempts
+        context.setProperty(OTP_RETRY_ATTEMPTS, 2);
+        context.setProperty(OTP_RESEND_ATTEMPTS, 1);
+
+        when(httpServletRequest.getParameter(AuthenticatorConstants.RESEND)).thenReturn(null);
+        when(httpServletRequest.getParameter(CODE)).thenReturn(correctOtp);
+        when(httpServletRequest.getParameterNames()).thenReturn(
+                Collections.enumeration(Collections.singletonList(CODE)));
+
+        authenticatorUtils.when(() ->
+                AuthenticatorUtils.isAccountLocked(any()))
+                .thenReturn(false);
+        authenticatorUtils.when(() ->
+                AuthenticatorUtils.getMaximumAllowedRetryAttemptsLimit(any()))
+                .thenReturn(-1);
+        // Required by isOtpExpired -> getOtpValidityPeriod
+        commonUtils.when(() -> CommonUtils.getOtpValidityPeriod(TENANT_DOMAIN))
+                .thenReturn(300000L);
+
+        when(realmService.getTenantUserRealm(TENANT_ID)).thenReturn(userRealm);
+        when(userRealm.getUserStoreManager()).thenReturn(userStoreManager);
+        when(userStoreManager.getUserClaimValues(any(), any(), any())).thenReturn(new HashMap<>());
+        // Allow resetOtpFailedAttempts and publishPostEmailOTPValidatedEvent events to go through
+        Mockito.doNothing().when(identityEventService).handleEvent(any());
+
+        Method resetCountersMethod = emailOTPAuthenticator.getClass()
+                .getDeclaredMethod("processAuthenticationResponse",
+                        HttpServletRequest.class, HttpServletResponse.class, AuthenticationContext.class);
+        resetCountersMethod.setAccessible(true);
+        try {
+            resetCountersMethod.invoke(emailOTPAuthenticator, httpServletRequest, httpServletResponse, context);
+        } catch (InvocationTargetException e) {
+            Assert.fail("processAuthenticationResponse threw unexpectedly: " + e.getCause());
+        }
+
+        Assert.assertEquals(context.getProperty(OTP_RETRY_ATTEMPTS), 0,
+                "OTP_RETRY_ATTEMPTS should be reset to 0 on successful authentication.");
+        Assert.assertEquals(context.getProperty(OTP_RESEND_ATTEMPTS), 0,
+                "OTP_RESEND_ATTEMPTS should be reset to 0 on successful authentication.");
+    }
+
+    @DataProvider(name = "remainingAttemptsDataProvider")
+    public Object[][] remainingAttemptsDataProvider() {
+
+        // maxAccountLockAttempts, currentFailedAttempts, maxContextRetryAttempts,
+        // currentContextRetryAttempts, expectedRemaining
+        return new Object[][]{
+                // Context-based limit disabled (-1) → only account-lock based (5 - 2 = 3)
+                {5, 2, -1, 0, 3},
+                // Context-based limit enabled and more restrictive → min(3, 1) = 1
+                {5, 2, 3, 2, 1},
+                // Context-based limit enabled but less restrictive → min(3, 5) = 3
+                {5, 2, 10, 5, 3},
+                // Both give same value
+                {5, 2, 3, 0, 3},
+        };
+    }
+
+    @Test(dataProvider = "remainingAttemptsDataProvider",
+            description = "Test getRemainingNumberOfOtpAttempts returns the minimum of account-lock-based "
+                    + "and context-based remaining attempts when context-based retry blocking is enabled.")
+    public void testGetRemainingNumberOfOtpAttempts(int maxAccountLockAttempts, int currentFailedAttempts,
+                                                    int maxContextRetryAttempts, int currentContextRetryAttempts,
+                                                    int expectedRemaining) throws Exception {
+
+        setAuthenticatorConfig();
+        configureAuthenticatorDataHolder();
+        configureAuthenticatedUser(false);
+
+        context.setTenantDomain(TENANT_DOMAIN);
+        context.setProperty(OTP_RETRY_ATTEMPTS, currentContextRetryAttempts);
+
+        Map<String, String> claimMap = new HashMap<>();
+        claimMap.put(AuthenticatorConstants.Claims.EMAIL_OTP_FAILED_ATTEMPTS_CLAIM,
+                String.valueOf(currentFailedAttempts));
+
+        when(realmService.getTenantUserRealm(TENANT_ID)).thenReturn(userRealm);
+        when(userRealm.getUserStoreManager()).thenReturn(userStoreManager);
+        when(userStoreManager.getUserClaimValues(any(), any(), any())).thenReturn(claimMap);
+
+        authenticatorUtils.when(() ->
+                AuthenticatorUtils.getMaximumAllowedRetryAttemptsLimit(any()))
+                .thenReturn(maxContextRetryAttempts);
+
+        org.wso2.carbon.identity.application.common.model.Property failedLoginProp =
+                new org.wso2.carbon.identity.application.common.model.Property();
+        failedLoginProp.setName("account.lock.handler.On.Failure.Max.Attempts");
+        failedLoginProp.setValue(String.valueOf(maxAccountLockAttempts));
+        authenticatorUtils.when(() ->
+                AuthenticatorUtils.getAccountLockConnectorConfigs(TENANT_DOMAIN))
+                .thenReturn(new org.wso2.carbon.identity.application.common.model.Property[]{failedLoginProp});
+
+        Method method = emailOTPAuthenticator.getClass()
+                .getDeclaredMethod("getRemainingNumberOfOtpAttempts",
+                        String.class, AuthenticationContext.class);
+        method.setAccessible(true);
+        int result = (int) method.invoke(emailOTPAuthenticator, TENANT_DOMAIN, context);
+
+        Assert.assertEquals(result, expectedRemaining,
+                "Remaining OTP attempts should be the minimum of account-lock based and context-based limits.");
+    }
+
+    // -------------------------------------------------------------------------
+    // Combined user-based + context-based resend blocking tests
+    // -------------------------------------------------------------------------
+
+    @Test(description = "Test that context-based resend blocking is applied alongside user-based blocking: "
+            + "context counter is NOT updated when user-based blocking alone is active.")
+    public void testContextCounterNotIncrementedWhenOnlyUserBasedBlockingActive() throws Exception {
+
+        setAuthenticatorConfig();
+        configureAuthenticatorDataHolder();
+        configureAuthenticatedUser(false);
+
+        context.setTenantDomain(TENANT_DOMAIN);
+        context.setRetrying(true);
+        context.setCurrentAuthenticator(EMAIL_OTP_AUTHENTICATOR_NAME);
+        context.setProperty(OTP_RESEND_ATTEMPTS, 0);
+
+        when(httpServletRequest.getParameter(AuthenticatorConstants.RESEND)).thenReturn("true");
+
+        // User-based blocking enabled (max = 5), context-based disabled (-1)
+        authenticatorUtils.when(() ->
+                AuthenticatorUtils.getEmailAuthenticatorConfig(
+                        AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_RESEND_ATTEMPTS_COUNT, TENANT_DOMAIN))
+                .thenReturn("5");
+        authenticatorUtils.when(() ->
+                AuthenticatorUtils.getSkipResendBlockTimeParam(any()))
+                .thenReturn("false");
+        authenticatorUtils.when(() ->
+                AuthenticatorUtils.getMaximumAllowedResendAttemptsLimit(any()))
+                .thenReturn(-1);
+        authenticatorUtils.when(() ->
+                AuthenticatorUtils.getMaximumAllowedRetryAttemptsLimit(any()))
+                .thenReturn(-1);
+        authenticatorUtils.when(() ->
+                AuthenticatorUtils.getEmailOTPLoginPageUrl(any(), anyString()))
+                .thenReturn("https://localhost:9443/authenticationendpoint/email-otp.jsp");
+        authenticatorUtils.when(() ->
+                AuthenticatorUtils.getEmailAuthenticatorConfig(
+                        AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_RESEND_BLOCK_DURATION, TENANT_DOMAIN))
+                .thenReturn("5");
+
+        Map<String, String> claimMap = new HashMap<>();
+        // Below user-based max so OTP is sent
+        claimMap.put(EMAIL_OTP_RESEND_ATTEMPTS_CLAIM, "1");
+        claimMap.put(EMAIL_OTP_LAST_SENT_TIME_CLAIM,
+                String.valueOf(System.currentTimeMillis() - 10 * 60_000L)); // 10 min ago → outside block window
+
+        when(realmService.getTenantUserRealm(TENANT_ID)).thenReturn(userRealm);
+        when(userRealm.getUserStoreManager()).thenReturn(userStoreManager);
+        when(userStoreManager.getUserClaimValues(any(), any(), any())).thenReturn(claimMap);
+        when(FileBasedConfigurationBuilder.getInstance()).thenReturn(fileBasedConfigurationBuilder);
+        AuthenticatorConfig userBasedOnlyConfig = setAuthenticatorConfig();
+        when(fileBasedConfigurationBuilder.getAuthenticatorBean(anyString())).thenReturn(userBasedOnlyConfig);
+        when(CaptchaDataHolder.getInstance()).thenReturn(captchaDataHolder);
+        when(IdentityConfigParser.getInstance()).thenReturn(identityConfigParser);
+        when(identityConfigParser.getConfiguration()).thenReturn(new HashMap<>());
+
+        Method userBasedOnlyMethod = emailOTPAuthenticator.getClass()
+                .getDeclaredMethod("initiateAuthenticationRequest",
+                        HttpServletRequest.class, HttpServletResponse.class, AuthenticationContext.class);
+        userBasedOnlyMethod.setAccessible(true);
+        try {
+            userBasedOnlyMethod.invoke(emailOTPAuthenticator, httpServletRequest, httpServletResponse, context);
+        } catch (InvocationTargetException ignored) {
+        }
+
+        // Context counter should remain 0 — only user-based blocking is active
+        Assert.assertEquals(context.getProperty(OTP_RESEND_ATTEMPTS), 0,
+                "Context resend counter should NOT be incremented when only user-based blocking is active.");
     }
 }

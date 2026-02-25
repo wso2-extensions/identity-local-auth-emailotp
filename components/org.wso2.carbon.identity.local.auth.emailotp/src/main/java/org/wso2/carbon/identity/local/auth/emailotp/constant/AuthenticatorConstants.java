@@ -60,6 +60,7 @@ public class AuthenticatorConstants {
     public static final String EMAIL_OTP_TEMPLATE_NAME = "EmailOTP";
     public static final String RESEND_EMAIL_OTP_TEMPLATE_NAME = "ResendEmailOTP";
     public static final String LOCAL_CLAIM_VALUE = "locale";
+    public static final String UNKNOWN_USER = "Unknown user";
 
     public static final String CODE_MISMATCH = "codeMismatch";
     public static final String OTP_EXPIRED = "isOTPExpired";
@@ -88,6 +89,7 @@ public class AuthenticatorConstants {
     public static final String ERROR_CODE_QUERY_PARAM = "&errorCode=";
     public static final String RESEND_CODE_PARAM = "&resendCode=true";
     public static final String OTP_RESEND_ATTEMPTS = "otpResendAttempts";
+    public static final String OTP_RETRY_ATTEMPTS = "otpRetryAttempts";
     public static final String MAX_OTP_RESEND_ATTEMPTS_EXCEEDED = "maxOtpResendAttemptsExceeded";
     public static final String MULTI_OPTION_QUERY_PARAM = "multiOptionURI";
     public static final String REMAINING_NUMBER_OF_EMAIL_OTP_ATTEMPTS_QUERY = "&remainingNumberOfEmailOtpAttempts=";
@@ -110,6 +112,12 @@ public class AuthenticatorConstants {
     public static final String DISPLAY_USER_NAME = "Username";
     public static final String IS_REDIRECT_TO_EMAIL_OTP = "isRedirectToEmailOTP";
     public static final String CONF_SHOW_AUTH_FAILURE_REASON = "showAuthFailureReason";
+
+    //Runtime Params.
+    public static final String MAXIMUM_RETRY_LIMIT = "maximumAllowedRetryAttempts";
+    public static final String MAXIMUM_RESEND_LIMIT = "maximumAllowedResendAttempts";
+    public static final String SKIP_RESEND_BLOCK_TIME = "skipResendBlockTime";
+    public static final String TERMINATE_ON_RESEND_LIMIT_EXCEEDED = "terminateOnResendLimitExceeded";
 
     /**
      * Authenticator config related configurations.
@@ -243,7 +251,9 @@ public class AuthenticatorConstants {
                 "Error occurred while updating the claims for user: %s"),
         ERROR_CODE_ERROR_INVALID_CLAIM_VALUE("65033", "Invalid claim value provided"),
         ERROR_CODE_ERROR_CHECKING_USER_EXISTENCE("65034",
-                "Error occurred while checking existence of user: %s");
+                "Error occurred while checking existence of user: %s"),
+        ERROR_CODE_RESEND_LIMIT_EXCEEDED("65035",
+                "OTP resend limit exceeded for user: %s");
 
 
         private final String code;
