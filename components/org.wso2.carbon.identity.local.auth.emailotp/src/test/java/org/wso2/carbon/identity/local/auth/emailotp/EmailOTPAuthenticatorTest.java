@@ -53,6 +53,7 @@ import org.wso2.carbon.identity.central.log.mgt.utils.LoggerUtils;
 import org.wso2.carbon.identity.claim.metadata.mgt.ClaimMetadataManagementService;
 import org.wso2.carbon.identity.core.util.IdentityConfigParser;
 import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
+import org.wso2.carbon.identity.core.util.IdentityUtil;
 import org.wso2.carbon.identity.event.event.Event;
 import org.wso2.carbon.identity.event.services.IdentityEventService;
 import org.wso2.carbon.identity.governance.IdentityGovernanceService;
@@ -786,5 +787,67 @@ public class EmailOTPAuthenticatorTest {
         captchaUtil.close();
         userCoreUtil.close();
         mockLoggerUtils.close();
+    }
+
+    @Test(description = "Test process method with multiple users scenario - should handle gracefully")
+    public void testProcessMethodWithMultipleUsersScenario() throws Exception {
+        
+        AuthenticatorConfig authenticatorConfig = setAuthenticatorConfig();
+        context.setTenantDomain(TENANT_DOMAIN);
+        
+        when(IdentityConfigParser.getInstance()).thenReturn(identityConfigParser);
+        Map<String, Object> configs = new HashMap<>();
+        configs.put(HIDE_USER_EXISTENCE_CONFIG, "true");
+        when(identityConfigParser.getConfiguration()).thenReturn(configs);
+        
+        when(httpServletRequest.getParameter(AuthenticatorConstants.USER_NAME)).thenReturn(USERNAME);
+        when(ConfigurationFacade.getInstance()).thenReturn(configurationFacade);
+        when(configurationFacade.getAuthenticationEndpointURL()).thenReturn(DUMMY_LOGIN_PAGE_URL);
+        
+        configureAuthenticatorDataHolder();
+        when(FrameworkUtils.preprocessUsername(USERNAME, context)).thenReturn(USERNAME + "@" + TENANT_DOMAIN);
+        when(FileBasedConfigurationBuilder.getInstance()).thenReturn(fileBasedConfigurationBuilder);
+        when(AuthenticatorUtils.isAccountLocked(any())).thenReturn(false);
+        when(CaptchaDataHolder.getInstance()).thenReturn(captchaDataHolder);
+        when(FrameworkServiceDataHolder.getInstance()).thenReturn(frameworkServiceDataHolder);
+        when(frameworkServiceDataHolder.getRealmService()).thenReturn(realmService);
+        when(realmService.getTenantUserRealm(TENANT_ID)).thenReturn(userRealm);
+        when(userRealm.getUserStoreManager()).thenReturn(userStoreManager);
+        when(userStoreManager.getSecondaryUserStoreManager(anyString())).thenReturn(userStoreManager);
+        when(fileBasedConfigurationBuilder.getAuthenticatorBean(anyString())).thenReturn(authenticatorConfig);
+        userCoreUtil.when(UserCoreUtil::getDomainFromThreadLocal).thenReturn(DEFAULT_USER_STORE);
+        mockMultiAttributeLoginService();
+        
+        User user1 = new User(UUID.randomUUID().toString(), USERNAME, null);
+        user1.setUserStoreDomain(USER_STORE_DOMAIN);
+        user1.setTenantDomain(TENANT_DOMAIN);
+        
+        User user2 = new User(UUID.randomUUID().toString(), USERNAME, null);
+        user2.setUserStoreDomain(USER_STORE_DOMAIN);
+        user2.setTenantDomain(TENANT_DOMAIN);
+        
+        List<User> multipleUsersList = new ArrayList<>();
+        multipleUsersList.add(user1);
+        multipleUsersList.add(user2);
+        
+        Map<String, String> claimMap = new HashMap<>();
+        claimMap.put(EMAIL_ADDRESS_CLAIM, EMAIL_ADDRESS);
+        
+        when(userStoreManager.getUserListWithID(USERNAME_CLAIM, USERNAME, null)).thenReturn(multipleUsersList);
+        when(userStoreManager.getUserClaimValues(any(), any(), any())).thenReturn(claimMap);
+        
+        try (MockedStatic<IdentityUtil> identityUtil = mockStatic(IdentityUtil.class)) {
+            identityUtil.when(() -> IdentityUtil.getProperty(HIDE_USER_EXISTENCE_CONFIG))
+                    .thenReturn("true");
+            
+            AuthenticatorFlowStatus status = emailOTPAuthenticator.process(httpServletRequest, 
+                    httpServletResponse, context);
+            
+            assertEquals(status, AuthenticatorFlowStatus.INCOMPLETE);
+            
+            Assert.assertTrue((Boolean.parseBoolean(String.valueOf(context.getProperty(
+                    AuthenticatorConstants.IS_REDIRECT_TO_EMAIL_OTP)))),
+                    "Should redirect to EmailOTP page when multiple users found and hide user existence is enabled");
+        }
     }
 }
