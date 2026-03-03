@@ -805,7 +805,8 @@ public class EmailOTPAuthenticatorTest {
         when(configurationFacade.getAuthenticationEndpointURL()).thenReturn(DUMMY_LOGIN_PAGE_URL);
         
         configureAuthenticatorDataHolder();
-        when(FrameworkUtils.preprocessUsername(USERNAME, context)).thenReturn(USERNAME + "@" + TENANT_DOMAIN);
+        when(FrameworkUtils.preprocessUsernameWithContextTenantDomain(USERNAME, context))
+                .thenReturn(USERNAME + "@" + TENANT_DOMAIN);
         when(FileBasedConfigurationBuilder.getInstance()).thenReturn(fileBasedConfigurationBuilder);
         when(AuthenticatorUtils.isAccountLocked(any())).thenReturn(false);
         when(CaptchaDataHolder.getInstance()).thenReturn(captchaDataHolder);
