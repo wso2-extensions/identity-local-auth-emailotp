@@ -34,14 +34,13 @@ import java.util.OptionalInt;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mockStatic;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
 /**
- * Unit tests for {@link AuthenticatorUtils} - runtime param helper methods and logDiagnostic.
+ * Unit tests for {@link AuthenticatorUtils} – runtime param helper methods and triggerDiagnosticLog.
  */
 public class AuthenticatorUtilsTest {
 
@@ -61,65 +60,92 @@ public class AuthenticatorUtilsTest {
         mockLoggerUtils.close();
     }
 
-    @Test(description = "Returns empty Optional when runtimeParams map is null.")
-    public void testGetOptionalParamFromRuntimeParams_NullMap() {
+    /**
+     * Provides scenarios for {@link AuthenticatorUtils#getStringRuntimeParamByName} that should return empty.
+     * Format: { runtimeParams, paramName }
+     */
+    @DataProvider(name = "stringParamEmptyResultProvider")
+    public Object[][] stringParamEmptyResultProvider() {
 
-        Optional<String> result = AuthenticatorUtils.getOptionalParamFromRuntimeParams(null, PARAM_NAME);
-        assertFalse(result.isPresent(), "Should return empty Optional for null map.");
+        Map<String, String> otherKey = new HashMap<>();
+        otherKey.put("otherParam", "someValue");
+
+        return new Object[][]{
+                {null, PARAM_NAME},
+                {new HashMap<>(), PARAM_NAME},
+                {otherKey, PARAM_NAME},
+        };
     }
 
-    @Test(description = "Returns empty Optional when runtimeParams map is empty.")
-    public void testGetOptionalParamFromRuntimeParams_EmptyMap() {
+    @Test(dataProvider = "stringParamEmptyResultProvider",
+            description = "Returns empty Optional when the param is absent or map is null/empty.")
+    public void testGetStringRuntimeParamByNameReturnsEmpty(Map<String, String> params, String paramName) {
 
-        Optional<String> result = AuthenticatorUtils.getOptionalParamFromRuntimeParams(new HashMap<>(), PARAM_NAME);
-        assertFalse(result.isPresent(), "Should return empty Optional for empty map.");
+        Optional<String> result = AuthenticatorUtils.getStringRuntimeParamByName(params, paramName);
+        assertFalse(result.isPresent(), "Expected empty Optional but got a value.");
     }
 
-    @Test(description = "Returns empty Optional when the key is not present in the map.")
-    public void testGetOptionalParamFromRuntimeParams_KeyNotPresent() {
+    /**
+     * Provides scenarios for {@link AuthenticatorUtils#getStringRuntimeParamByName} that should return a value.
+     * Format: { runtimeParams, paramName, expectedValue }
+     */
+    @DataProvider(name = "stringParamPresentProvider")
+    public Object[][] stringParamPresentProvider() {
 
-        Map<String, String> params = new HashMap<>();
-        params.put("otherParam", "someValue");
-        Optional<String> result = AuthenticatorUtils.getOptionalParamFromRuntimeParams(params, PARAM_NAME);
-        assertFalse(result.isPresent(), "Should return empty Optional when key is absent.");
+        Map<String, String> single = new HashMap<>();
+        single.put(PARAM_NAME, "hello");
+
+        Map<String, String> multiple = new HashMap<>();
+        multiple.put(PARAM_NAME, "world");
+        multiple.put("other", "ignored");
+
+        return new Object[][]{
+                {single, PARAM_NAME, "hello"},
+                {multiple, PARAM_NAME, "world"},
+        };
     }
 
-    @Test(description = "Returns the value wrapped in Optional when the key is present.")
-    public void testGetOptionalParamFromRuntimeParams_KeyPresent() {
+    @Test(dataProvider = "stringParamPresentProvider",
+            description = "Returns the correct value wrapped in Optional when the key is present.")
+    public void testGetStringRuntimeParamByNameReturnsValue(Map<String, String> params, String paramName,
+                                                            String expected) {
 
-        Map<String, String> params = new HashMap<>();
-        params.put(PARAM_NAME, "hello");
-        Optional<String> result = AuthenticatorUtils.getOptionalParamFromRuntimeParams(params, PARAM_NAME);
-        assertTrue(result.isPresent(), "Should return a non-empty Optional when key exists.");
-        assertEquals(result.get(), "hello", "Should return the correct value.");
+        Optional<String> result = AuthenticatorUtils.getStringRuntimeParamByName(params, paramName);
+        assertTrue(result.isPresent(), "Expected a non-empty Optional.");
+        assertEquals(result.get(), expected, "Returned value should match the map entry.");
     }
 
-    @Test(description = "Returns empty Optional<Boolean> when runtimeParams map is null.")
-    public void testGetOptionalBooleanParamFromRuntimeParams_NullMap() {
+    /**
+     * Provides scenarios for {@link AuthenticatorUtils#getBooleanRuntimeParamByName} that should return empty.
+     * Format: { runtimeParams, paramName }
+     */
+    @DataProvider(name = "booleanParamEmptyResultProvider")
+    public Object[][] booleanParamEmptyResultProvider() {
 
-        Optional<Boolean> result = AuthenticatorUtils.getOptionalBooleanParamFromRuntimeParams(null, PARAM_NAME);
-        assertFalse(result.isPresent(), "Should return empty Optional for null map.");
+        Map<String, String> otherKey = new HashMap<>();
+        otherKey.put("otherParam", "true");
+
+        return new Object[][]{
+                {null, PARAM_NAME},
+                {new HashMap<>(), PARAM_NAME},
+                {otherKey, PARAM_NAME},
+        };
     }
 
-    @Test(description = "Returns empty Optional<Boolean> when runtimeParams map is empty.")
-    public void testGetOptionalBooleanParamFromRuntimeParams_EmptyMap() {
+    @Test(dataProvider = "booleanParamEmptyResultProvider",
+            description = "Returns empty Optional<Boolean> when the param is absent or map is null/empty.")
+    public void testGetBooleanRuntimeParamByNameReturnsEmpty(Map<String, String> params, String paramName) {
 
-        Optional<Boolean> result =
-                AuthenticatorUtils.getOptionalBooleanParamFromRuntimeParams(new HashMap<>(), PARAM_NAME);
-        assertFalse(result.isPresent(), "Should return empty Optional for empty map.");
+        Optional<Boolean> result = AuthenticatorUtils.getBooleanRuntimeParamByName(params, paramName);
+        assertFalse(result.isPresent(), "Expected empty Optional but got a value.");
     }
 
-    @Test(description = "Returns empty Optional<Boolean> when key is absent.")
-    public void testGetOptionalBooleanParamFromRuntimeParams_KeyNotPresent() {
-
-        Map<String, String> params = new HashMap<>();
-        params.put("otherParam", "true");
-        Optional<Boolean> result = AuthenticatorUtils.getOptionalBooleanParamFromRuntimeParams(params, PARAM_NAME);
-        assertFalse(result.isPresent(), "Should return empty Optional when key is absent.");
-    }
-
-    @DataProvider(name = "booleanParamProvider")
-    public Object[][] booleanParamProvider() {
+    /**
+     * Provides scenarios for {@link AuthenticatorUtils#getBooleanRuntimeParamByName} that should return a value.
+     * Format: { rawValue, expectedBoolean }
+     */
+    @DataProvider(name = "booleanParamPresentProvider")
+    public Object[][] booleanParamPresentProvider() {
 
         return new Object[][]{
                 {"true", Boolean.TRUE},
@@ -130,103 +156,130 @@ public class AuthenticatorUtilsTest {
         };
     }
 
-    @Test(dataProvider = "booleanParamProvider",
-            description = "Returns the correctly parsed Boolean value when key is present.")
-    public void testGetOptionalBooleanParamFromRuntimeParams_KeyPresent(String rawValue, Boolean expected) {
+    @Test(dataProvider = "booleanParamPresentProvider",
+            description = "Returns the correctly parsed Boolean value when the key is present.")
+    public void testGetBooleanRuntimeParamByNameReturnsValue(String rawValue, Boolean expected) {
 
         Map<String, String> params = new HashMap<>();
         params.put(PARAM_NAME, rawValue);
-        Optional<Boolean> result = AuthenticatorUtils.getOptionalBooleanParamFromRuntimeParams(params, PARAM_NAME);
-        assertTrue(result.isPresent(), "Should return a non-empty Optional.");
-        assertEquals(result.get(), expected, "Parsed boolean value should match.");
+        Optional<Boolean> result = AuthenticatorUtils.getBooleanRuntimeParamByName(params, PARAM_NAME);
+        assertTrue(result.isPresent(), "Expected a non-empty Optional.");
+        assertEquals(result.get(), expected, "Parsed boolean should match the expected value.");
     }
 
-    @Test(description = "Returns empty OptionalInt when runtimeParams map is null.")
-    public void testGetOptionalIntParamFromRuntimeParams_NullMap() {
+    /**
+     * Provides scenarios for {@link AuthenticatorUtils#getIntRuntimeParamByName} that should return empty
+     * without triggering a diagnostic log.
+     * Format: { runtimeParams, paramName }
+     */
+    @DataProvider(name = "intParamEmptyResultProvider")
+    public Object[][] intParamEmptyResultProvider() {
 
-        OptionalInt result = AuthenticatorUtils.getOptionalIntParamFromRuntimeParams(null, PARAM_NAME);
-        assertFalse(result.isPresent(), "Should return empty OptionalInt for null map.");
+        Map<String, String> otherKey = new HashMap<>();
+        otherKey.put("otherParam", "42");
+
+        return new Object[][]{
+                {null, PARAM_NAME},
+                {new HashMap<>(), PARAM_NAME},
+                {otherKey, PARAM_NAME},
+        };
     }
 
-    @Test(description = "Returns empty OptionalInt when runtimeParams map is empty.")
-    public void testGetOptionalIntParamFromRuntimeParams_EmptyMap() {
+    @Test(dataProvider = "intParamEmptyResultProvider",
+            description = "Returns empty OptionalInt when the param is absent or map is null/empty.")
+    public void testGetIntRuntimeParamByNameReturnsEmpty(Map<String, String> params, String paramName) {
 
-        OptionalInt result = AuthenticatorUtils.getOptionalIntParamFromRuntimeParams(new HashMap<>(), PARAM_NAME);
-        assertFalse(result.isPresent(), "Should return empty OptionalInt for empty map.");
+        OptionalInt result = AuthenticatorUtils.getIntRuntimeParamByName(params, paramName);
+        assertFalse(result.isPresent(), "Expected empty OptionalInt but got a value.");
     }
 
-    @Test(description = "Returns empty OptionalInt when key is absent.")
-    public void testGetOptionalIntParamFromRuntimeParams_KeyNotPresent() {
+    /**
+     * Provides scenarios for {@link AuthenticatorUtils#getIntRuntimeParamByName} that should parse successfully.
+     * Format: { rawValue, expectedInt }
+     */
+    @DataProvider(name = "intParamValidProvider")
+    public Object[][] intParamValidProvider() {
+
+        return new Object[][]{
+                {"0", 0},
+                {"5", 5},
+                {"-1", -1},
+                {"2147483647", Integer.MAX_VALUE},
+        };
+    }
+
+    @Test(dataProvider = "intParamValidProvider",
+            description = "Returns the correctly parsed int value when the key holds a valid integer.")
+    public void testGetIntRuntimeParamByNameReturnsValue(String rawValue, int expected) {
 
         Map<String, String> params = new HashMap<>();
-        params.put("otherParam", "42");
-        OptionalInt result = AuthenticatorUtils.getOptionalIntParamFromRuntimeParams(params, PARAM_NAME);
-        assertFalse(result.isPresent(), "Should return empty OptionalInt when key is absent.");
+        params.put(PARAM_NAME, rawValue);
+        OptionalInt result = AuthenticatorUtils.getIntRuntimeParamByName(params, PARAM_NAME);
+        assertTrue(result.isPresent(), "Expected a non-empty OptionalInt.");
+        assertEquals(result.getAsInt(), expected, "Parsed integer should match the expected value.");
     }
 
-    @Test(description = "Returns the correctly parsed int value when key holds a valid integer.")
-    public void testGetOptionalIntParamFromRuntimeParams_ValidInt() {
+    /**
+     * Provides scenarios for {@link AuthenticatorUtils#getIntRuntimeParamByName} with non-parseable values,
+     * paired with whether diagnostic logging is enabled.
+     * Format: { rawValue, diagnosticLoggingEnabled, expectedInvocationCount }
+     */
+    @DataProvider(name = "intParamInvalidProvider")
+    public Object[][] intParamInvalidProvider() {
 
+        return new Object[][]{
+                {"notAnInt", true, 1},
+                {"notAnInt", false, 0},
+                {"1.5", true, 1},
+                {"1.5", false, 0},
+                {"", true, 0},
+                {"", false, 0},
+        };
+    }
+
+    @Test(dataProvider = "intParamInvalidProvider",
+            description = "Returns empty OptionalInt for non-parseable values; " +
+                    "diagnostic log triggered only when enabled.")
+    public void testGetIntRuntimeParamByNameWithInvalidValue(String rawValue, boolean diagnosticEnabled,
+                                                             int expectedLogInvocations) {
+
+        mockLoggerUtils.when(LoggerUtils::isDiagnosticLogsEnabled).thenReturn(diagnosticEnabled);
         Map<String, String> params = new HashMap<>();
-        params.put(PARAM_NAME, "5");
-        OptionalInt result = AuthenticatorUtils.getOptionalIntParamFromRuntimeParams(params, PARAM_NAME);
-        assertTrue(result.isPresent(), "Should return a non-empty OptionalInt.");
-        assertEquals(result.getAsInt(), 5, "Parsed integer value should match.");
+        params.put(PARAM_NAME, rawValue);
+        OptionalInt result = AuthenticatorUtils.getIntRuntimeParamByName(params, PARAM_NAME);
+        assertFalse(result.isPresent(), "Should return empty OptionalInt for a non-parseable value.");
+        mockLoggerUtils.verify(() -> LoggerUtils.triggerDiagnosticLogEvent(any()), times(expectedLogInvocations));
     }
 
-    @Test(description = "Returns empty OptionalInt and logs a diagnostic when the value is not a valid integer " +
-            "and diagnostic logging is enabled.")
-    public void testGetOptionalIntParamFromRuntimeParams_InvalidInt_DiagnosticEnabled() {
+    /**
+     * Provides scenarios for {@link AuthenticatorUtils#triggerDiagnosticLog}.
+     * Format: { diagnosticLoggingEnabled, resultStatus, expectedInvocationCount }
+     */
+    @DataProvider(name = "diagnosticLogProvider")
+    public Object[][] diagnosticLogProvider() {
 
-        mockLoggerUtils.when(LoggerUtils::isDiagnosticLogsEnabled).thenReturn(true);
-
-        Map<String, String> params = new HashMap<>();
-        params.put(PARAM_NAME, "notAnInt");
-        OptionalInt result = AuthenticatorUtils.getOptionalIntParamFromRuntimeParams(params, PARAM_NAME);
-        assertFalse(result.isPresent(), "Should return empty OptionalInt for non-parseable value.");
-        // Verify that a diagnostic log was triggered.
-        mockLoggerUtils.verify(() -> LoggerUtils.triggerDiagnosticLogEvent(any()), times(1));
+        return new Object[][]{
+                {true, DiagnosticLog.ResultStatus.SUCCESS, 1},
+                {true, DiagnosticLog.ResultStatus.FAILED, 1},
+                {false, DiagnosticLog.ResultStatus.SUCCESS, 0},
+                {false, DiagnosticLog.ResultStatus.FAILED, 0},
+        };
     }
 
-    @Test(description = "Returns empty OptionalInt and skips diagnostic logging when diagnostic logging is disabled.")
-    public void testGetOptionalIntParamFromRuntimeParams_InvalidInt_DiagnosticDisabled() {
+    @Test(dataProvider = "diagnosticLogProvider",
+            description = "Triggers DiagnosticLogEvent only when diagnostic logging is enabled.")
+    public void testTriggerDiagnosticLog(boolean diagnosticEnabled, DiagnosticLog.ResultStatus status,
+                                         int expectedInvocations) {
 
-        mockLoggerUtils.when(LoggerUtils::isDiagnosticLogsEnabled).thenReturn(false);
-        Map<String, String> params = new HashMap<>();
-        params.put(PARAM_NAME, "notAnInt");
-        OptionalInt result = AuthenticatorUtils.getOptionalIntParamFromRuntimeParams(params, PARAM_NAME);
-        assertFalse(result.isPresent(), "Should return empty OptionalInt for non-parseable value.");
-        // Diagnostic event must NOT be triggered.
-        mockLoggerUtils.verify(() -> LoggerUtils.triggerDiagnosticLogEvent(any()), never());
-    }
-
-
-    @Test(description = "Triggers a DiagnosticLogEvent when diagnostic logging is enabled.")
-    public void testLogDiagnostic_DiagnosticLoggingEnabled() {
-
-        mockLoggerUtils.when(LoggerUtils::isDiagnosticLogsEnabled).thenReturn(true);
-        AuthenticatorUtils.logDiagnostic(
+        mockLoggerUtils.when(LoggerUtils::isDiagnosticLogsEnabled).thenReturn(diagnosticEnabled);
+        AuthenticatorUtils.triggerDiagnosticLog(
                 "component-id",
                 AuthenticatorConstants.LogConstants.ActionIDs.GET_OPTIONAL_INTEGER_RUNTIME_PARAMS,
                 "test message",
-                DiagnosticLog.ResultStatus.SUCCESS,
+                status,
                 DiagnosticLog.LogDetailLevel.APPLICATION
         );
-        mockLoggerUtils.verify(() -> LoggerUtils.triggerDiagnosticLogEvent(any()), times(1));
-    }
-
-    @Test(description = "Does NOT trigger a DiagnosticLogEvent when diagnostic logging is disabled.")
-    public void testLogDiagnostic_DiagnosticLoggingDisabled() {
-
-        mockLoggerUtils.when(LoggerUtils::isDiagnosticLogsEnabled).thenReturn(false);
-        AuthenticatorUtils.logDiagnostic(
-                "component-id",
-                AuthenticatorConstants.LogConstants.ActionIDs.GET_OPTIONAL_INTEGER_RUNTIME_PARAMS,
-                "test message",
-                DiagnosticLog.ResultStatus.FAILED,
-                DiagnosticLog.LogDetailLevel.APPLICATION
-        );
-        mockLoggerUtils.verify(() -> LoggerUtils.triggerDiagnosticLogEvent(any()), never());
+        mockLoggerUtils.verify(() -> LoggerUtils.triggerDiagnosticLogEvent(any()), times(expectedInvocations));
     }
 }
 

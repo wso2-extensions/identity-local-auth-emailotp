@@ -93,7 +93,6 @@ import java.util.Set;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import static org.wso2.carbon.identity.auth.otp.core.constant.AuthenticatorConstants.DEFAULT_OTP_RESEND_ATTEMPTS;
 import static org.wso2.carbon.identity.auth.otp.core.constant.AuthenticatorConstants.INVALID_USERNAME;
 import static org.wso2.carbon.identity.event.IdentityEventConstants.Event.POST_NON_BASIC_AUTHENTICATION;
 import static org.wso2.carbon.identity.event.IdentityEventConstants.EventProperty.AUTHENTICATOR_NAME;
@@ -125,7 +124,6 @@ import static org.wso2.carbon.identity.local.auth.emailotp.constant.Authenticato
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.LogConstants.EMAIL_OTP_SERVICE;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.MAXIMUM_ALLOWED_FAILURE_LIMIT;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.MAXIMUM_RESEND_LIMIT;
-import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.SKIP_RESEND_BLOCK_TIME;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.TERMINATE_ON_RESEND_LIMIT_EXCEEDED;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.UNKNOWN_USER;
 import static org.wso2.carbon.user.core.UserCoreConstants.ErrorCode.USER_IS_LOCKED;
@@ -268,6 +266,12 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
 
                     if (isEmailOTPAsFirstFactor(context) &&
                             Boolean.parseBoolean(IdentityUtil.getProperty(HIDE_USER_EXISTENCE_CONFIG))) {
+                        if (isOTPResendLimitExceededScenario(scenario, context)) {
+                            handleOTPResendCountExceededScenario(request, response, context, null);
+                            return;
+                        } else if (scenario == AuthenticatorConstants.AuthenticationScenarios.RESEND_OTP) {
+                            updateContextOTPResendCount(context);
+                        }
                         redirectToEmailOTPLoginPage(null, null, context.getTenantDomain(), response, request, context);
                         return;
                     }
@@ -380,7 +384,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
                         boolean withinBlockWindow = (now - lastResend) < blockTimeMillis;
 
                         if (withinBlockWindow) {
-                            // If the user is withing the block window, do not terminate the flow immediately.
+                            // If the user is within the block window, do not terminate the flow immediately.
                             // Instead, redirect the user to the OTP login page with an error message indicating
                             // that the resend limit has been exceeded.
                             handleOTPResendCountExceededScenario(request, response, context, mappedLocalUser, false);
@@ -547,7 +551,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         AuthenticatedUser authenticatingUser = resolveAuthenticatingUser(authenticatedUserFromContext,
                 mappedLocalUsername, applicationTenantDomain, isInitialFederationAttempt, context);
         String codeParam = getCurrentCodeParam(request);
-        if (StringUtils.isBlank(request.getParameter(codeParam))) {
+        if (StringUtils.isBlank(request.getParameter(codeParam)) && !isResendAttempt) {
             handleInvalidOTPLoginAttempt(context, applicationTenantDomain);
             throw handleInvalidCredentialsScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_EMPTY_OTP_CODE,
                     authenticatedUserFromContext.getUserName());
@@ -2025,7 +2029,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
 
         if (isContextBasedRetryBlockingEnabled(context)) {
             return Math.min(getRemainingNumberOfOtpAttemptsForAccountLock(tenantDomain, context),
-                    getRemainingNumberOfContextBasedRetryAttempts(tenantDomain, context));
+                    getRemainingNumberOfContextBasedRetryAttempts(context));
         } else {
             return getRemainingNumberOfOtpAttemptsForAccountLock(tenantDomain, context);
         }
@@ -2034,16 +2038,15 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
     /**
      * Get the remaining number of context based retry attempts.
      *
-     * @param tenantDomain Tenant domain.
      * @param context Authentication context.
      * @return Remaining number of context based retry attempts.
      * @throws AuthenticationFailedException If an error occurred while getting the remaining number of
      *                                       context based retry attempts.
      */
-    private int getRemainingNumberOfContextBasedRetryAttempts(String tenantDomain, AuthenticationContext context)
+    private int getRemainingNumberOfContextBasedRetryAttempts(AuthenticationContext context)
             throws AuthenticationFailedException {
 
-        int maxRetryAttempts = getMaximumRetryAttempts(context.getTenantDomain(), context);
+        int maxRetryAttempts = getMaximumRetryAttempts(context);
         int currentRetryAttempts = getCurrentRetryAttempt(context);
         int remainingRetryAttempts = maxRetryAttempts - currentRetryAttempts;
         // If the remaining retry attempts is less than 0, then return 0.
@@ -2170,7 +2173,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
      */
     private int getMaximumResendAttemptsFromContext(AuthenticationContext context) {
 
-        OptionalInt maxResendAttemptsFromContext = AuthenticatorUtils.getOptionalIntParamFromRuntimeParams(
+        OptionalInt maxResendAttemptsFromContext = AuthenticatorUtils.getIntRuntimeParamByName(
                 getRuntimeParams(context), MAXIMUM_RESEND_LIMIT);
         return maxResendAttemptsFromContext.orElse(Integer.MAX_VALUE);
     }
@@ -2237,7 +2240,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         if (isContextBasedRetryBlockingEnabled(context)) {
             // Update Context based retry counter only if context based retry blocking is enabled.
             updateContextOTPRetryCount(context);
-            int maxRetryAttempts = getMaximumRetryAttempts(applicationTenantDomain, context);
+            int maxRetryAttempts = getMaximumRetryAttempts(context);
             int currentRetryAttempts = getCurrentRetryAttempt(context);
             if (currentRetryAttempts >= maxRetryAttempts) {
                 handleOTPRetryCountExceededScenario(context);
@@ -2275,20 +2278,17 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
 
         return scenario == AuthenticatorConstants.AuthenticationScenarios.RESEND_OTP
                 && isContextBasedOTPResendBlockingEnabled(context)
-                && isOTPResendLimitExceeded(context, context.getTenantDomain());
-
-
+                && isOTPResendLimitExceeded(context);
     }
 
     /**
      *  Check whether the OTP resend count has exceeded the allowed limit for the context.
      *
      * @param context Authentication context.
-     * @param applicationTenantDomain Application tenant domain.
      * @return true if the resend count has exceeded, false otherwise.
      * @throws AuthenticationFailedException If an error occurs while checking the resend count.
      */
-    private boolean isOTPResendLimitExceeded(AuthenticationContext context, String applicationTenantDomain)
+    private boolean isOTPResendLimitExceeded(AuthenticationContext context)
             throws AuthenticationFailedException {
 
         int allowedResendAttemptsCount = getMaximumResendAttemptsFromContext(context);
@@ -2299,16 +2299,15 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
     /**
      * Get the number of maximum attempts the user is allowed to retry OTP submission.
      *
-     * @param tenantDomain  Tenant Domain.
      * @param context Authentication Context.
      * @return The maximum number of retry attempts.
      * @throws AuthenticationFailedException If an error occurs when retrieving config.
      */
-    private int getMaximumRetryAttempts(String tenantDomain, AuthenticationContext context)
+    private int getMaximumRetryAttempts(AuthenticationContext context)
             throws AuthenticationFailedException {
 
         if (isContextBasedRetryBlockingEnabled(context)) {
-            OptionalInt maxRetryAttemptsFromContext = AuthenticatorUtils.getOptionalIntParamFromRuntimeParams(
+            OptionalInt maxRetryAttemptsFromContext = AuthenticatorUtils.getIntRuntimeParamByName(
                     getRuntimeParams(context), MAXIMUM_ALLOWED_FAILURE_LIMIT);
             return maxRetryAttemptsFromContext.isPresent() ? maxRetryAttemptsFromContext.getAsInt() :
                     Integer.MAX_VALUE;
@@ -2446,14 +2445,6 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
     protected boolean isUserBasedOTPResendBlockingEnabled(String tenantDomain, AuthenticationContext context)
             throws AuthenticationFailedException {
 
-        Optional<Boolean> skipResendBlockTimeParam =
-                AuthenticatorUtils.getOptionalBooleanParamFromRuntimeParams(getRuntimeParams(context),
-                        SKIP_RESEND_BLOCK_TIME);
-        if (skipResendBlockTimeParam.isPresent()) {
-            if (skipResendBlockTimeParam.get()) {
-                return false;
-            }
-        }
         return getMaximumResendAttempts(tenantDomain, context) != 0;
     }
 
@@ -2468,7 +2459,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             throws AuthenticationFailedException {
 
         OptionalInt maximumAllowedResendAttemptsLimit =
-                AuthenticatorUtils.getOptionalIntParamFromRuntimeParams(getRuntimeParams(context),
+                AuthenticatorUtils.getIntRuntimeParamByName(getRuntimeParams(context),
                         MAXIMUM_RESEND_LIMIT);
         if (maximumAllowedResendAttemptsLimit.isPresent()) {
             int resendLimit = maximumAllowedResendAttemptsLimit.getAsInt();
@@ -2477,10 +2468,10 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             }
             if (log.isDebugEnabled()) {
                 log.debug(String.format("Invalid value: %d for maximum allowed resend attempts limit. " +
-                                "The value should be a non-negative integer. Falling back to default value: %d",
-                        resendLimit, DEFAULT_OTP_RESEND_ATTEMPTS));
+                                "The value should be a non-negative integer.",
+                        resendLimit));
             }
-            AuthenticatorUtils.logDiagnostic(EMAIL_OTP_SERVICE,
+            AuthenticatorUtils.triggerDiagnosticLog(EMAIL_OTP_SERVICE,
                     AuthenticatorConstants.LogConstants.ActionIDs.GET_MAX_RESEND_LIMIT,
                     "Invalid value: " + resendLimit + " for maximum allowed resend attempts limit. " +
                             "The value should be a non-negative integer.",
@@ -2501,7 +2492,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             throws AuthenticationFailedException {
 
         OptionalInt maximumAllowedRetryAttemptsLimit =
-                AuthenticatorUtils.getOptionalIntParamFromRuntimeParams(getRuntimeParams(context),
+                AuthenticatorUtils.getIntRuntimeParamByName(getRuntimeParams(context),
                         AuthenticatorConstants.MAXIMUM_ALLOWED_FAILURE_LIMIT);
         if (maximumAllowedRetryAttemptsLimit.isPresent()) {
             int retryLimit = maximumAllowedRetryAttemptsLimit.getAsInt();
@@ -2511,12 +2502,12 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             if (log.isDebugEnabled()) {
                 log.debug(
                         String.format("Invalid value: %d for maximum allowed retry attempts limit. " +
-                                "The value should be a non-negative integer.", retryLimit));
+                                "The value should be a positive integer.", retryLimit));
             }
-            AuthenticatorUtils.logDiagnostic(getName(),
+            AuthenticatorUtils.triggerDiagnosticLog(getName(),
                     AuthenticatorConstants.LogConstants.ActionIDs.GET_MAX_FAILURE_LIMIT,
                     "Invalid value: " + retryLimit + " for maximum allowed failure attempts limit. " +
-                            "The value should be a postvive integer.",
+                            "The value should be a positive integer.",
                     DiagnosticLog.ResultStatus.FAILED,
                     DiagnosticLog.LogDetailLevel.APPLICATION
             );
@@ -2534,7 +2525,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             throws AuthenticationFailedException {
 
         Optional<Boolean> terminateOnResendLimitExceededParam =
-                AuthenticatorUtils.getOptionalBooleanParamFromRuntimeParams(getRuntimeParams(context),
+                AuthenticatorUtils.getBooleanRuntimeParamByName(getRuntimeParams(context),
                         TERMINATE_ON_RESEND_LIMIT_EXCEEDED);
         return terminateOnResendLimitExceededParam.isPresent() && terminateOnResendLimitExceededParam.get();
     }

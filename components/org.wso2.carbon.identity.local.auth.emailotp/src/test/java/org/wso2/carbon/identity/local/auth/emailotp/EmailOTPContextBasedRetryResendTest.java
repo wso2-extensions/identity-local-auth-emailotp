@@ -81,7 +81,6 @@ import static org.wso2.carbon.identity.local.auth.emailotp.constant.Authenticato
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.EMAIL_OTP_RETRY_ATTEMPTS_CONTEXT_PROPERTY_NAME;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.MAXIMUM_ALLOWED_FAILURE_LIMIT;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.MAXIMUM_RESEND_LIMIT;
-import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.SKIP_RESEND_BLOCK_TIME;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.TERMINATE_ON_RESEND_LIMIT_EXCEEDED;
 
 /**
@@ -149,11 +148,11 @@ public class EmailOTPContextBasedRetryResendTest {
         identityTenantUtil.when(() -> IdentityTenantUtil.getTenantId(TENANT_DOMAIN)).thenReturn(-1234);
         when(frameworkServiceDataHolder.getMultiAttributeLoginService()).thenReturn(multiAttributeLoginService);
         when(multiAttributeLoginService.isEnabled(anyString())).thenReturn(false);
-        authenticatorUtils.when(() -> AuthenticatorUtils.getOptionalParamFromRuntimeParams(any(), anyString()))
+        authenticatorUtils.when(() -> AuthenticatorUtils.getStringRuntimeParamByName(any(), anyString()))
                 .thenCallRealMethod();
-        authenticatorUtils.when(() -> AuthenticatorUtils.getOptionalIntParamFromRuntimeParams(any(), anyString()))
+        authenticatorUtils.when(() -> AuthenticatorUtils.getIntRuntimeParamByName(any(), anyString()))
                 .thenCallRealMethod();
-        authenticatorUtils.when(() -> AuthenticatorUtils.getOptionalBooleanParamFromRuntimeParams(any(), anyString()))
+        authenticatorUtils.when(() -> AuthenticatorUtils.getBooleanRuntimeParamByName(any(), anyString()))
                 .thenCallRealMethod();
         AuthenticatorDataHolder.setIdentityEventService(mock(IdentityEventService.class));
     }
@@ -189,11 +188,10 @@ public class EmailOTPContextBasedRetryResendTest {
         }
     }
 
-    // --------------------------- Flow tests: initiateAuthenticationRequest (resend limit) ---------------------------
-
     @Test(description = "Flow: initiateAuthenticationRequest with context-based resend limit exceeded " +
             "enforces resend limit and does not redirect to email OTP page")
     public void testInitiateAuthenticationRequest_ContextResendLimitExceeded_EnforcesLimit() throws Exception {
+
         // Context-based resend: max 2, current already 2; terminate so we get AUTH_ERROR_CODE set
         Map<String, String> params = new HashMap<>();
         params.put(MAXIMUM_RESEND_LIMIT, "2");
@@ -273,6 +271,7 @@ public class EmailOTPContextBasedRetryResendTest {
     @Test(description = "Flow: initiateAuthenticationRequest with context-based resend under limit " +
             "allows resend and updates context resend count")
     public void testInitiateAuthenticationRequest_ContextResendUnderLimit_UpdatesResendCount() throws Exception {
+
         addRuntimeParamsToContext(MAXIMUM_RESEND_LIMIT, "5");
         context.setTenantDomain(TENANT_DOMAIN);
         context.setRetrying(true);
@@ -336,11 +335,10 @@ public class EmailOTPContextBasedRetryResendTest {
         assertEquals(((Number) resendCount).intValue(), 1, "Resend count should be 1 after one resend");
     }
 
-    // --------------------------- Flow tests: processAuthenticationResponse (retry limit) ---------------------------
-
     @Test(description = "Flow: processAuthenticationResponse with context-based retry limit " +
             "increments retry count on invalid OTP")
     public void testProcessAuthenticationResponse_ContextRetry_IncrementsCountOnInvalidOtp() throws Exception {
+
         addRuntimeParamsToContext(MAXIMUM_ALLOWED_FAILURE_LIMIT, "3");
         context.setTenantDomain(TENANT_DOMAIN);
         context.setCurrentAuthenticator(EMAIL_OTP_AUTHENTICATOR_NAME);
@@ -378,8 +376,9 @@ public class EmailOTPContextBasedRetryResendTest {
     @Test(description = "Flow: processAuthenticationResponse when retry limit exceeded sets AUTH_ERROR_CODE" +
             " and SKIP_RETRY")
     public void testProcessAuthenticationResponse_RetryLimitExceeded_SetsErrorCodeAndSkipRetry() throws Exception {
+
         addRuntimeParamsToContext(MAXIMUM_ALLOWED_FAILURE_LIMIT, "2");
-        context.setProperty(EMAIL_OTP_RETRY_ATTEMPTS_CONTEXT_PROPERTY_NAME, 1); // one more failure will hit limit
+        context.setProperty(EMAIL_OTP_RETRY_ATTEMPTS_CONTEXT_PROPERTY_NAME, 1);
         context.setTenantDomain(TENANT_DOMAIN);
         context.setCurrentAuthenticator(EMAIL_OTP_AUTHENTICATOR_NAME);
         setStepConfigWithEmailOTPAuthenticator(context);
@@ -417,6 +416,7 @@ public class EmailOTPContextBasedRetryResendTest {
 
     @Test(description = "Flow: processAuthenticationResponse on successful OTP resets context retry and resend counts")
     public void testProcessAuthenticationResponse_Success_ResetsContextRetryAndResendCounts() throws Exception {
+
         context.setProperty(EMAIL_OTP_RETRY_ATTEMPTS_CONTEXT_PROPERTY_NAME, 1);
         context.setProperty(EMAIL_OTP_RESEND_ATTEMPTS_CONTEXT_PROPERTY_NAME, 1);
         context.setTenantDomain(TENANT_DOMAIN);
@@ -450,65 +450,64 @@ public class EmailOTPContextBasedRetryResendTest {
                 "Resend count should be reset on success");
     }
 
-    // --------------------------- Individual method tests (protected) ---------------------------
-
     @Test(description = "isContextBasedOTPResendBlockingEnabled returns true when MAXIMUM_RESEND_LIMIT is set and >= 0")
     public void testIsContextBasedOTPResendBlockingEnabled_WithValidLimit() throws AuthenticationFailedException {
+
         addRuntimeParamsToContext(MAXIMUM_RESEND_LIMIT, "3");
         Assert.assertTrue(emailOTPAuthenticator.isContextBasedOTPResendBlockingEnabled(context));
     }
 
     @Test(description = "isContextBasedOTPResendBlockingEnabled returns true when limit is 0")
     public void testIsContextBasedOTPResendBlockingEnabled_WithZeroLimit() throws AuthenticationFailedException {
+
         addRuntimeParamsToContext(MAXIMUM_RESEND_LIMIT, "0");
         Assert.assertTrue(emailOTPAuthenticator.isContextBasedOTPResendBlockingEnabled(context));
     }
 
     @Test(description = "isContextBasedOTPResendBlockingEnabled returns false when param absent")
     public void testIsContextBasedOTPResendBlockingEnabled_WithNoParam() throws AuthenticationFailedException {
+
         Assert.assertFalse(emailOTPAuthenticator.isContextBasedOTPResendBlockingEnabled(context));
     }
 
     @Test(description = "isContextBasedRetryBlockingEnabled returns true when MAXIMUM_ALLOWED_FAILURE_LIMIT " +
             "is positive")
     public void testIsContextBasedRetryBlockingEnabled_WithPositiveLimit() throws AuthenticationFailedException {
+
         addRuntimeParamsToContext(MAXIMUM_ALLOWED_FAILURE_LIMIT, "5");
         Assert.assertTrue(emailOTPAuthenticator.isContextBasedRetryBlockingEnabled(context));
     }
 
     @Test(description = "isContextBasedRetryBlockingEnabled returns false when limit is 0")
     public void testIsContextBasedRetryBlockingEnabled_WithZeroLimit() throws AuthenticationFailedException {
+
         addRuntimeParamsToContext(MAXIMUM_ALLOWED_FAILURE_LIMIT, "0");
         Assert.assertFalse(emailOTPAuthenticator.isContextBasedRetryBlockingEnabled(context));
     }
 
     @Test(description = "isContextBasedRetryBlockingEnabled returns false when param absent")
     public void testIsContextBasedRetryBlockingEnabled_WithNoParam() throws AuthenticationFailedException {
+
         Assert.assertFalse(emailOTPAuthenticator.isContextBasedRetryBlockingEnabled(context));
     }
 
     @Test(description = "isTerminateOnResendLimitExceeded returns true when param is true")
     public void testIsTerminateOnResendLimitExceeded_WhenTrue() throws AuthenticationFailedException {
+
         addRuntimeParamsToContext(TERMINATE_ON_RESEND_LIMIT_EXCEEDED, "true");
         Assert.assertTrue(emailOTPAuthenticator.isTerminateOnResendLimitExceeded(context));
     }
 
     @Test(description = "isTerminateOnResendLimitExceeded returns false when param is false")
     public void testIsTerminateOnResendLimitExceeded_WhenFalse() throws AuthenticationFailedException {
+
         addRuntimeParamsToContext(TERMINATE_ON_RESEND_LIMIT_EXCEEDED, "false");
         Assert.assertFalse(emailOTPAuthenticator.isTerminateOnResendLimitExceeded(context));
     }
 
-    @Test(description = "isUserBasedOTPResendBlockingEnabled returns false when skipResendBlockTime is true")
-    public void testIsUserBasedOTPResendBlockingEnabled_SkipResendBlockTimeTrue() throws AuthenticationFailedException {
-        addRuntimeParamsToContext(SKIP_RESEND_BLOCK_TIME, "true");
-        Assert.assertFalse(emailOTPAuthenticator.isUserBasedOTPResendBlockingEnabled(TENANT_DOMAIN, context));
-    }
-
-    // --------------------------- Individual method tests (private, via reflection) ---------------------------
-
     @Test(description = "getMaximumResendAttemptsFromContext returns runtime param when set")
     public void testGetMaximumResendAttemptsFromContext_WithParam() throws Exception {
+
         addRuntimeParamsToContext(MAXIMUM_RESEND_LIMIT, "7");
         int result = invokePrivateIntMethod("getMaximumResendAttemptsFromContext",
                 new Class[]{AuthenticationContext.class}, new Object[]{context});
@@ -517,6 +516,7 @@ public class EmailOTPContextBasedRetryResendTest {
 
     @Test(description = "getMaximumResendAttemptsFromContext returns Integer.MAX_VALUE when param absent")
     public void testGetMaximumResendAttemptsFromContext_NoParam() throws Exception {
+
         int result = invokePrivateIntMethod("getMaximumResendAttemptsFromContext",
                 new Class[]{AuthenticationContext.class}, new Object[]{context});
         assertEquals(result, Integer.MAX_VALUE);
@@ -524,43 +524,48 @@ public class EmailOTPContextBasedRetryResendTest {
 
     @Test(description = "getMaximumRetryAttempts returns runtime param when context retry enabled")
     public void testGetMaximumRetryAttempts_WithContextParam() throws Exception {
+
         addRuntimeParamsToContext(MAXIMUM_ALLOWED_FAILURE_LIMIT, "4");
         int result = invokePrivateIntMethod("getMaximumRetryAttempts",
-                new Class[]{String.class, AuthenticationContext.class},
-                new Object[]{TENANT_DOMAIN, context});
+                new Class[]{AuthenticationContext.class},
+                new Object[]{context});
         assertEquals(result, 4);
     }
 
     @Test(description = "getMaximumRetryAttempts returns Integer.MAX_VALUE when context retry disabled")
     public void testGetMaximumRetryAttempts_NoContextParam() throws Exception {
+
         int result = invokePrivateIntMethod("getMaximumRetryAttempts",
-                new Class[]{String.class, AuthenticationContext.class},
-                new Object[]{TENANT_DOMAIN, context});
+                new Class[]{AuthenticationContext.class},
+                new Object[]{context});
         assertEquals(result, Integer.MAX_VALUE);
     }
 
     @Test(description = "isOTPResendLimitExceeded returns true when current >= limit")
     public void testIsOTPResendLimitExceeded_WhenAtOrOverLimit() throws Exception {
+
         addRuntimeParamsToContext(MAXIMUM_RESEND_LIMIT, "2");
         context.setProperty(EMAIL_OTP_RESEND_ATTEMPTS_CONTEXT_PROPERTY_NAME, 2);
         boolean result = invokePrivateBooleanMethod("isOTPResendLimitExceeded",
-                new Class[]{AuthenticationContext.class, String.class},
-                new Object[]{context, TENANT_DOMAIN});
+                new Class[]{AuthenticationContext.class},
+                new Object[]{context});
         Assert.assertTrue(result);
     }
 
     @Test(description = "isOTPResendLimitExceeded returns false when current below limit")
     public void testIsOTPResendLimitExceeded_WhenBelowLimit() throws Exception {
+
         addRuntimeParamsToContext(MAXIMUM_RESEND_LIMIT, "5");
         context.setProperty(EMAIL_OTP_RESEND_ATTEMPTS_CONTEXT_PROPERTY_NAME, 2);
         boolean result = invokePrivateBooleanMethod("isOTPResendLimitExceeded",
-                new Class[]{AuthenticationContext.class, String.class},
-                new Object[]{context, TENANT_DOMAIN});
+                new Class[]{AuthenticationContext.class},
+                new Object[]{context});
         Assert.assertFalse(result);
     }
 
     @DataProvider(name = "resendScenarioProvider")
     public Object[][] resendScenarioProvider() {
+
         return new Object[][]{
                 {AuthenticatorConstants.AuthenticationScenarios.RESEND_OTP, true},
                 {AuthenticatorConstants.AuthenticationScenarios.INITIAL_OTP, false},
@@ -572,6 +577,7 @@ public class EmailOTPContextBasedRetryResendTest {
             description = "isOTPResendLimitExceededScenario returns true only for RESEND_OTP when limit exceeded")
     public void testIsOTPResendLimitExceededScenario(AuthenticatorConstants.AuthenticationScenarios scenario,
                                                       boolean expectTrueWhenLimitExceeded) throws Exception {
+
         addRuntimeParamsToContext(MAXIMUM_RESEND_LIMIT, "1");
         context.setProperty(EMAIL_OTP_RESEND_ATTEMPTS_CONTEXT_PROPERTY_NAME, 1);
         context.setTenantDomain(TENANT_DOMAIN);
@@ -587,6 +593,7 @@ public class EmailOTPContextBasedRetryResendTest {
 
     @Test(description = "updateContextOTPResendCount initialises to 1 when not set")
     public void testUpdateContextOTPResendCount_InitialisesToOne() throws Exception {
+
         invokePrivateVoidMethod("updateContextOTPResendCount",
                 new Class[]{AuthenticationContext.class}, new Object[]{context});
         assertEquals(context.getProperty(EMAIL_OTP_RESEND_ATTEMPTS_CONTEXT_PROPERTY_NAME), 1);
@@ -594,6 +601,7 @@ public class EmailOTPContextBasedRetryResendTest {
 
     @Test(description = "updateContextOTPResendCount increments when already set")
     public void testUpdateContextOTPResendCount_Increments() throws Exception {
+
         context.setProperty(EMAIL_OTP_RESEND_ATTEMPTS_CONTEXT_PROPERTY_NAME, 2);
         invokePrivateVoidMethod("updateContextOTPResendCount",
                 new Class[]{AuthenticationContext.class}, new Object[]{context});
@@ -602,6 +610,7 @@ public class EmailOTPContextBasedRetryResendTest {
 
     @Test(description = "updateContextOTPRetryCount initialises to 1 when not set")
     public void testUpdateContextOTPRetryCount_InitialisesToOne() throws Exception {
+
         invokePrivateVoidMethod("updateContextOTPRetryCount",
                 new Class[]{AuthenticationContext.class}, new Object[]{context});
         assertEquals(context.getProperty(EMAIL_OTP_RETRY_ATTEMPTS_CONTEXT_PROPERTY_NAME), 1);
@@ -609,6 +618,7 @@ public class EmailOTPContextBasedRetryResendTest {
 
     @Test(description = "updateContextOTPRetryCount increments when already set")
     public void testUpdateContextOTPRetryCount_Increments() throws Exception {
+
         context.setProperty(EMAIL_OTP_RETRY_ATTEMPTS_CONTEXT_PROPERTY_NAME, 3);
         invokePrivateVoidMethod("updateContextOTPRetryCount",
                 new Class[]{AuthenticationContext.class}, new Object[]{context});
@@ -617,6 +627,7 @@ public class EmailOTPContextBasedRetryResendTest {
 
     @Test(description = "resetContextRetryCount sets retry count to 0")
     public void testResetContextRetryCount() throws Exception {
+
         context.setProperty(EMAIL_OTP_RETRY_ATTEMPTS_CONTEXT_PROPERTY_NAME, 5);
         invokePrivateVoidMethod("resetContextRetryCount",
                 new Class[]{AuthenticationContext.class}, new Object[]{context});
@@ -625,6 +636,7 @@ public class EmailOTPContextBasedRetryResendTest {
 
     @Test(description = "resetContextResendCount sets resend count to 0")
     public void testResetContextResendCount() throws Exception {
+
         context.setProperty(EMAIL_OTP_RESEND_ATTEMPTS_CONTEXT_PROPERTY_NAME, 3);
         invokePrivateVoidMethod("resetContextResendCount",
                 new Class[]{AuthenticationContext.class}, new Object[]{context});
@@ -633,6 +645,7 @@ public class EmailOTPContextBasedRetryResendTest {
 
     @Test(description = "getCurrentRetryAttempt returns 0 when not set")
     public void testGetCurrentRetryAttempt_WhenNotSet() throws Exception {
+
         int result = invokePrivateIntMethod("getCurrentRetryAttempt",
                 new Class[]{AuthenticationContext.class}, new Object[]{context});
         assertEquals(result, 0);
@@ -640,6 +653,7 @@ public class EmailOTPContextBasedRetryResendTest {
 
     @Test(description = "getCurrentRetryAttempt returns stored value")
     public void testGetCurrentRetryAttempt_WhenSet() throws Exception {
+
         context.setProperty(EMAIL_OTP_RETRY_ATTEMPTS_CONTEXT_PROPERTY_NAME, 2);
         int result = invokePrivateIntMethod("getCurrentRetryAttempt",
                 new Class[]{AuthenticationContext.class}, new Object[]{context});
@@ -648,6 +662,7 @@ public class EmailOTPContextBasedRetryResendTest {
 
     @Test(description = "getCurrentResendAttempt returns 0 when not set")
     public void testGetCurrentResendAttempt_WhenNotSet() throws Exception {
+
         int result = invokePrivateIntMethod("getCurrentResendAttempt",
                 new Class[]{AuthenticationContext.class}, new Object[]{context});
         assertEquals(result, 0);
@@ -655,6 +670,7 @@ public class EmailOTPContextBasedRetryResendTest {
 
     @Test(description = "getCurrentResendAttempt returns stored value")
     public void testGetCurrentResendAttempt_WhenSet() throws Exception {
+
         context.setProperty(EMAIL_OTP_RESEND_ATTEMPTS_CONTEXT_PROPERTY_NAME, 3);
         int result = invokePrivateIntMethod("getCurrentResendAttempt",
                 new Class[]{AuthenticationContext.class}, new Object[]{context});
@@ -663,6 +679,7 @@ public class EmailOTPContextBasedRetryResendTest {
 
     @Test(description = "handleOTPRetryCountExceededScenario sets SKIP_RETRY and AUTH_ERROR_CODE")
     public void testHandleOTPRetryCountExceededScenario_SetsContextProperties() throws Exception {
+
         invokePrivateVoidMethod("handleOTPRetryCountExceededScenario",
                 new Class[]{AuthenticationContext.class}, new Object[]{context});
         assertEquals(context.getProperty(FrameworkConstants.AUTH_ERROR_CODE),
@@ -672,6 +689,7 @@ public class EmailOTPContextBasedRetryResendTest {
 
     @Test(description = "handleInvalidOTPLoginAttempt increments retry count when context retry enabled")
     public void testHandleInvalidOTPLoginAttempt_IncrementsRetryWhenEnabled() throws Exception {
+
         addRuntimeParamsToContext(MAXIMUM_ALLOWED_FAILURE_LIMIT, "5");
         invokePrivateVoidMethod("handleInvalidOTPLoginAttempt",
                 new Class[]{AuthenticationContext.class, String.class},
@@ -681,6 +699,7 @@ public class EmailOTPContextBasedRetryResendTest {
 
     @Test(description = "handleInvalidOTPLoginAttempt does not increment when context retry disabled")
     public void testHandleInvalidOTPLoginAttempt_NoIncrementWhenDisabled() throws Exception {
+
         invokePrivateVoidMethod("handleInvalidOTPLoginAttempt",
                 new Class[]{AuthenticationContext.class, String.class},
                 new Object[]{context, TENANT_DOMAIN});
@@ -689,6 +708,7 @@ public class EmailOTPContextBasedRetryResendTest {
 
     @Test(description = "handleInvalidOTPLoginAttempt sets AUTH_ERROR_CODE when retry limit reached")
     public void testHandleInvalidOTPLoginAttempt_SetsErrorWhenLimitReached() throws Exception {
+
         addRuntimeParamsToContext(MAXIMUM_ALLOWED_FAILURE_LIMIT, "2");
         context.setProperty(EMAIL_OTP_RETRY_ATTEMPTS_CONTEXT_PROPERTY_NAME, 1);
         invokePrivateVoidMethod("handleInvalidOTPLoginAttempt",
@@ -701,6 +721,7 @@ public class EmailOTPContextBasedRetryResendTest {
     @Test(description = "handleOTPResendCountExceededScenario with terminateFlow=true and user throws and sets " +
             "AUTH_ERROR_CODE")
     public void testHandleOTPResendCountExceededScenario_TerminateFlowWithUser() throws Exception {
+
         context.setRetrying(true);
         AuthenticatedUser user = new AuthenticatedUser();
         user.setUserName("testuser");
@@ -724,6 +745,7 @@ public class EmailOTPContextBasedRetryResendTest {
     @Test(description = "handleOTPResendCountExceededScenario with terminateFlow=true and null user throws with " +
             "UNKNOWN_USER")
     public void testHandleOTPResendCountExceededScenario_TerminateFlowWithNullUser() throws Exception {
+
         context.setRetrying(true);
         try {
             invokePrivateVoidMethod("handleOTPResendCountExceededScenario",
@@ -739,19 +761,20 @@ public class EmailOTPContextBasedRetryResendTest {
         }
     }
 
-    // --------------------------- Helpers ---------------------------
-
     private void addRuntimeParamsToContext(String paramName, String paramValue) {
+
         Map<String, String> params = new HashMap<>();
         params.put(paramName, paramValue);
         addRuntimeParamsToContext(params);
     }
 
     private void addRuntimeParamsToContext(Map<String, String> params) {
+
         ((TestEmailOTPAuthenticator) emailOTPAuthenticator).setRuntimeParams(params != null ? params : new HashMap<>());
     }
 
     private void setStepConfigWithEmailOTPAuthenticator(AuthenticationContext ctx) {
+
         Map<Integer, StepConfig> stepConfigMap = new HashMap<>();
         StepConfig step = new StepConfig();
         AuthenticatorConfig authConfig = getAuthenticatorConfig();
@@ -771,6 +794,7 @@ public class EmailOTPContextBasedRetryResendTest {
     }
 
     private AuthenticatorConfig getAuthenticatorConfig() {
+
         AuthenticatorConfig config = new AuthenticatorConfig();
         config.setParameterMap(new HashMap<>());
         config.setName(EMAIL_OTP_AUTHENTICATOR_NAME);
@@ -778,6 +802,7 @@ public class EmailOTPContextBasedRetryResendTest {
     }
 
     private Method findMethod(Class<?> clazz, String name, Class<?>[] paramTypes) throws NoSuchMethodException {
+
         try {
             Method m = clazz.getDeclaredMethod(name, paramTypes);
             m.setAccessible(true);
@@ -791,17 +816,20 @@ public class EmailOTPContextBasedRetryResendTest {
     }
 
     private void invokePrivateVoidMethod(String methodName, Class<?>[] paramTypes, Object[] args) throws Exception {
+
         Method m = findMethod(EmailOTPAuthenticator.class, methodName, paramTypes);
         m.invoke(emailOTPAuthenticator, args);
     }
 
     private boolean invokePrivateBooleanMethod(String methodName, Class<?>[] paramTypes, Object[] args)
             throws Exception {
+
         Method m = findMethod(EmailOTPAuthenticator.class, methodName, paramTypes);
         return (Boolean) m.invoke(emailOTPAuthenticator, args);
     }
 
     private int invokePrivateIntMethod(String methodName, Class<?>[] paramTypes, Object[] args) throws Exception {
+
         Method m = findMethod(EmailOTPAuthenticator.class, methodName, paramTypes);
         return ((Number) m.invoke(emailOTPAuthenticator, args)).intValue();
     }
@@ -810,6 +838,7 @@ public class EmailOTPContextBasedRetryResendTest {
      * Test subclass that allows injecting runtime params so tests do not depend on context storage.
      */
     private static class TestEmailOTPAuthenticator extends EmailOTPAuthenticator {
+
         private Map<String, String> runtimeParams = new HashMap<>();
 
         void setRuntimeParams(Map<String, String> params) {
