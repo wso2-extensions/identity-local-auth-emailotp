@@ -19,12 +19,16 @@
 package org.wso2.carbon.identity.local.auth.emailotp.util;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import org.apache.commons.collections.MapUtils;
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.owasp.encoder.Encode;
 import org.wso2.carbon.identity.application.authentication.framework.context.AuthenticationContext;
 import org.wso2.carbon.identity.application.authentication.framework.exception.AuthenticationFailedException;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedUser;
 import org.wso2.carbon.identity.application.common.model.Property;
+import org.wso2.carbon.identity.central.log.mgt.utils.LoggerUtils;
 import org.wso2.carbon.identity.core.ServiceURLBuilder;
 import org.wso2.carbon.identity.core.URLBuilderException;
 import org.wso2.carbon.identity.governance.IdentityGovernanceException;
@@ -33,9 +37,13 @@ import org.wso2.carbon.identity.handler.event.account.lock.exception.AccountLock
 import org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants;
 import org.wso2.carbon.identity.local.auth.emailotp.exception.EmailOtpAuthenticatorServerException;
 import org.wso2.carbon.identity.local.auth.emailotp.internal.AuthenticatorDataHolder;
+import org.wso2.carbon.utils.DiagnosticLog;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Map;
+import java.util.Optional;
+import java.util.OptionalInt;
 
 import javax.servlet.http.HttpServletRequest;
 
@@ -54,6 +62,8 @@ import static org.wso2.carbon.identity.local.auth.emailotp.constant.Authenticato
  */
 public class AuthenticatorUtils {
 
+    private static final Log LOG = LogFactory.getLog(AuthenticatorUtils.class);
+    private static final String COMPONENT_ID = "local-auth-email-otp-authenticator-utils";
     /**
      * Check whether a given user account is locked.
      *
@@ -257,5 +267,99 @@ public class AuthenticatorUtils {
     private static boolean isURLRelative(String contextFromConfig) throws URISyntaxException {
 
         return !new URI(contextFromConfig).isAbsolute();
+    }
+
+    /**
+     * Get the parameter value from the runtime parameters if available.
+     *
+     * @param runtimeParams Runtime parameters.
+     * @param paramName     Parameter name.
+     * @return Optional parameter value.
+     */
+    public static Optional<String> getStringRuntimeParamByName(Map<String, String> runtimeParams,
+                                                               String paramName) {
+
+        if (MapUtils.isEmpty(runtimeParams)) {
+            return Optional.empty();
+        }
+
+        String value = runtimeParams.get(paramName);
+        if (StringUtils.isNotBlank(value)) {
+            return Optional.of(value);
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Get the boolean parameter value from the runtime parameters if available.
+     *
+     * @param runtimeParams Runtime parameters.
+     * @param paramName     Parameter name.
+     * @return Optional boolean parameter value.
+     */
+    public static Optional<Boolean> getBooleanRuntimeParamByName(Map<String, String> runtimeParams,
+                                                                 String paramName) {
+
+        Optional<String> paramValue = getStringRuntimeParamByName(runtimeParams, paramName);
+        if (paramValue.isPresent()) {
+            String value = paramValue.get();
+            return Optional.of(Boolean.parseBoolean(value));
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Get the integer parameter value from the runtime parameters if available.
+     *
+     * @param runtimeParams Runtime parameters.
+     * @param paramName     Parameter name.
+     * @return Optional integer parameter value.
+     */
+    public static OptionalInt getIntRuntimeParamByName(Map<String, String> runtimeParams,
+                                                       String paramName) {
+
+        Optional<String> value = getStringRuntimeParamByName(runtimeParams, paramName);
+        if (value.isPresent()) {
+            try {
+                return OptionalInt.of(Integer.parseInt(value.get()));
+            } catch (NumberFormatException e) {
+                triggerDiagnosticLog(
+                        COMPONENT_ID,
+                        AuthenticatorConstants.LogConstants.ActionIDs.GET_OPTIONAL_INTEGER_RUNTIME_PARAMS,
+                        "Unable to parse the parameter: " + paramName + " with value: "
+                                + value + " to an integer. Returning empty optional.",
+                        DiagnosticLog.ResultStatus.FAILED,
+                        DiagnosticLog.LogDetailLevel.APPLICATION
+                );
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("Unable to parse the parameter: " + paramName + " with value: "
+                            + value + " to an integer.", e);
+                }
+            }
+        }
+        return OptionalInt.empty();
+    }
+
+    /**
+     * Trigger a diagnostic log event if diagnostic logging is enabled.
+     *
+     * @param componentId    The diagnostic log component ID.
+     * @param actionId       The action ID associated with the log event.
+     * @param message        The result message to include in the log.
+     * @param status         The result status of the operation.
+     * @param logDetailLevel The detail level of the log entry.
+     */
+    public static void triggerDiagnosticLog(String componentId, String actionId, String message,
+                                            DiagnosticLog.ResultStatus status,
+                                            DiagnosticLog.LogDetailLevel logDetailLevel) {
+
+        if (LoggerUtils.isDiagnosticLogsEnabled()) {
+            LoggerUtils.triggerDiagnosticLogEvent(
+                    new DiagnosticLog.DiagnosticLogBuilder(componentId, actionId)
+                            .resultMessage(message)
+                            .logDetailLevel(logDetailLevel)
+                            .resultStatus(status)
+            );
+        }
     }
 }

@@ -46,6 +46,9 @@ public class AuthenticatorConstants {
     public static final String AUTHENTICATOR_EMAIL_OTP = "authenticator.email.otp";
     public static final String PROPERTY_ACCOUNT_LOCK_ON_FAILURE = "account.lock.handler.enable";
     public static final String HIDE_USER_EXISTENCE_CONFIG = "LocalAuthenticators.HideUserExistenceOnAuthFlow";
+    public static final String UNKNOWN_USER = "Unknown user";
+    public static final String EMAIL_OTP_RESEND_ATTEMPTS_CONTEXT_PROPERTY_NAME = "emailOtpResendAttempts";
+    public static final String EMAIL_OTP_RETRY_ATTEMPTS_CONTEXT_PROPERTY_NAME = "emailOtpRetryAttempts";
 
     // OTP generation.
     public static final String EMAIL_OTP_UPPER_CASE_ALPHABET_CHAR_SET = "KIGXHOYSPRWCEFMVUQLZDNABJT";
@@ -112,6 +115,12 @@ public class AuthenticatorConstants {
     public static final String CONF_SHOW_AUTH_FAILURE_REASON = "showAuthFailureReason";
     public static final String MULTIPLE_USERS_ERROR_MESSAGE = "There are more than one user with the provided username";
 
+    // Runtime Params.
+    public static final String MAXIMUM_ALLOWED_FAILURE_LIMIT = "maximumAllowedFailureAttempts";
+    public static final String MAXIMUM_RESEND_LIMIT = "maximumAllowedResendAttempts";
+    public static final String SKIP_RESEND_BLOCK_TIME = "skipResendBlockTime";
+    public static final String TERMINATE_ON_RESEND_LIMIT_EXCEEDED = "terminateOnResendLimitExceeded";
+
     /**
      * Authenticator config related configurations.
      */
@@ -159,6 +168,9 @@ public class AuthenticatorConstants {
             public static final String SEND_EMAIL_OTP = "send-email-otp";
             public static final String PROCESS_AUTHENTICATION_RESPONSE = "process-email-otp-authentication-response";
             public static final String INITIATE_EMAIL_OTP_REQUEST = "initiate-email-otp-authentication-request";
+            public static final String GET_OPTIONAL_INTEGER_RUNTIME_PARAMS = "get-optional-int-from-runtime-param";
+            public static final String GET_MAX_FAILURE_LIMIT = "get-max-failure-limit";
+            public static final String GET_MAX_RESEND_LIMIT = "get-max-resend-limit";
         }
 
         /**
@@ -244,7 +256,9 @@ public class AuthenticatorConstants {
                 "Error occurred while updating the claims for user: %s"),
         ERROR_CODE_ERROR_INVALID_CLAIM_VALUE("65033", "Invalid claim value provided"),
         ERROR_CODE_ERROR_CHECKING_USER_EXISTENCE("65034",
-                "Error occurred while checking existence of user: %s");
+                "Error occurred while checking existence of user: %s"),
+        ERROR_CODE_RESEND_LIMIT_EXCEEDED("65036", "Resend limit exceeded for user: %s"),
+        ERROR_CODE_RETRY_LIMIT_EXCEEDED("65037", "Retry limit exceeded for user: %s");
 
 
         private final String code;
