@@ -27,7 +27,7 @@
     <groupId>org.wso2.carbon.identity.local.auth.emailotp</groupId>
     <artifactId>identity-local-auth-emailotp</artifactId>
     <packaging>pom</packaging>
-    <version>1.1.1-SNAPSHOT</version>
+    <version>1.1.2-SNAPSHOT</version>
     <name>WSO2 Carbon - Email OTP Authenticator</name>
     <scm>
         <url>https://github.com/wso2-extensions/identity-local-auth-emailotp.git</url>
