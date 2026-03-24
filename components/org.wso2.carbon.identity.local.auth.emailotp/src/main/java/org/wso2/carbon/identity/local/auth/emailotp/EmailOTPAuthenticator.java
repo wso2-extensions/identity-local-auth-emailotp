@@ -602,12 +602,22 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             return;
         }
         /*
-        * Handle when the email OTP is unsuccessful. At this point user account is not locked. Locked scenario is
-        * handled from the above steps.
+        * Handle when the email OTP is unsuccessful. Account lock scenario with successful OTP validation is handled
+        * above.
         */
         if (!isInitialFederationAttempt) {
-            // A mapped user is not available for isInitialFederationAttempt true scenario.
-            handleOtpVerificationFail(authenticatingUser , context);
+            if (AuthenticatorUtils.isAccountLocked(authenticatingUser)) {
+                if (log.isDebugEnabled()) {
+                    String usernameToLog =  LoggerUtils.isLogMaskingEnable ?
+                            LoggerUtils.getMaskedContent(authenticatingUser.getUserName()) :
+                            authenticatingUser.getUserName();
+                    log.debug(String.format("Failed OTP attempt and the account is already locked for the user %s. " +
+                            "Hence not triggering the OTP failure event.", usernameToLog));
+                }
+            } else {
+                // A mapped user is not available for isInitialFederationAttempt true scenario.
+                handleOtpVerificationFail(authenticatingUser , context);
+            }
         }
 
         handleInvalidOTPLoginAttempt(context, applicationTenantDomain);

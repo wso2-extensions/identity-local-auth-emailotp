@@ -851,4 +851,69 @@ public class EmailOTPAuthenticatorTest {
                     "Should redirect to EmailOTP page when multiple users found and hide user existence is enabled");
         }
     }
+
+    @DataProvider(name = "otpVerificationFailAccountLockedDataProvider")
+    public Object[][] otpVerificationFailAccountLockedDataProvider() {
+
+        return new Object[][]{
+                // {isAccountLocked, shouldTriggerFailureEvent}
+                {false, true},   // Account NOT locked: failure event should be triggered.
+                {true, false}    // Account locked: failure event should be skipped.
+        };
+    }
+
+    @Test(dataProvider = "otpVerificationFailAccountLockedDataProvider",
+            description = "Test that OTP verification failure event is skipped when the user account is locked.")
+    public void testOtpVerificationFailEventSkippedWhenAccountLocked(boolean isAccountLocked,
+                                                                     boolean shouldTriggerFailureEvent)
+            throws Exception {
+
+        setAuthenticatorConfig();
+        configureAuthenticatedUser(false);
+        configureAuthenticatorDataHolder();
+        context.setTenantDomain(TENANT_DOMAIN);
+
+        // Set a valid OTP token in context that does NOT match the user-provided OTP so verification fails.
+        context.setProperty(AuthenticatorConstants.OTP_TOKEN, "123456");
+        context.setProperty(AuthenticatorConstants.OTP_GENERATED_TIME, System.currentTimeMillis());
+        context.setProperty(AuthenticatorConstants.OTP_EXPIRED, Boolean.toString(false));
+
+        // Mock the request to provide a mismatched OTP code.
+        when(httpServletRequest.getParameter(AuthenticatorConstants.CODE)).thenReturn("654321");
+        when(httpServletRequest.getParameter(AuthenticatorConstants.RESEND)).thenReturn(null);
+        when(httpServletRequest.getParameterNames()).thenReturn(
+                Collections.enumeration(Collections.singletonList(AuthenticatorConstants.CODE)));
+
+        // Mock account locked status.
+        authenticatorUtils.when(() -> AuthenticatorUtils.isAccountLocked(any())).thenReturn(isAccountLocked);
+
+        // Mock the realm service for getUserStoreManager used in handleOtpVerificationFail.
+        when(realmService.getTenantUserRealm(TENANT_ID)).thenReturn(userRealm);
+        when(userRealm.getUserStoreManager()).thenReturn(userStoreManager);
+
+        try {
+            emailOTPAuthenticator.processAuthenticationResponse(httpServletRequest, httpServletResponse, context);
+        } catch (AuthenticationFailedException e) {
+            // Expected: OTP mismatch will throw an exception after the failure handling.
+        }
+
+        ArgumentCaptor<Event> eventCaptor = ArgumentCaptor.forClass(Event.class);
+        if (shouldTriggerFailureEvent) {
+            // Two events: one from handleOtpVerificationFail (POST_NON_BASIC_AUTHENTICATION) and one from
+            // publishPostEmailOTPValidatedEvent (POST_VALIDATE_EMAIL_OTP).
+            verify(identityEventService, times(2)).handleEvent(eventCaptor.capture());
+            List<Event> capturedEvents = eventCaptor.getAllValues();
+            Assert.assertTrue(capturedEvents.stream().anyMatch(
+                            event -> "POST_NON_BASIC_AUTHENTICATION".equals(event.getEventName())),
+                    "POST_NON_BASIC_AUTHENTICATION event should be triggered when account is not locked.");
+        } else {
+            // Only the publishPostEmailOTPValidatedEvent (POST_VALIDATE_EMAIL_OTP) event should be triggered.
+            // The handleOtpVerificationFail (POST_NON_BASIC_AUTHENTICATION) event should be skipped.
+            verify(identityEventService, times(1)).handleEvent(eventCaptor.capture());
+            List<Event> capturedEvents = eventCaptor.getAllValues();
+            Assert.assertTrue(capturedEvents.stream().noneMatch(
+                            event -> "POST_NON_BASIC_AUTHENTICATION".equals(event.getEventName())),
+                    "POST_NON_BASIC_AUTHENTICATION event should NOT be triggered when account is locked.");
+        }
+    }
 }
