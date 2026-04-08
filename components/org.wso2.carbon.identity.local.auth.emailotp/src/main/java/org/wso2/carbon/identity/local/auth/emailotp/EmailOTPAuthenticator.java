@@ -956,20 +956,19 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
                 context);
         setAuthenticatorMessage(context, maskedEmailAddress);
 
-        /* SaaS apps are created at the super tenant level and they can be accessed by users of other organizations.
-        If users of other organizations try to login to a saas app, the email notification should be triggered from the
-        email provider configured for that organization. Hence, we need to start a new tenanted flow here. */
-        if (context.getSequenceConfig().getApplicationConfig().isSaaSApp()) {
-            try {
-                FrameworkUtils.startTenantFlow(authenticatedUser.getTenantDomain());
-                triggerEvent(IdentityEventConstants.Event.TRIGGER_NOTIFICATION, authenticatedUser, metaProperties,
-                        context);
-            } finally {
-                FrameworkUtils.endTenantFlow();
-            }
-        } else {
+        /* When users from a different organization try to login (e.g., SaaS apps accessed by sub-org users, or
+        non-SaaS apps with Organization Login Enhanced where sub-org users authenticate via root org app), the email
+        notification should be triggered from the email provider configured for the user's organization. Hence, we
+        need to start a new tenanted flow with the authenticated user's tenant domain. */
+        if (!context.getSequenceConfig().getApplicationConfig().isSaaSApp()) {
             metaProperties.put(IdentityEventConstants.EventProperty.APPLICATION_DOMAIN, tenantDomain);
-            triggerEvent(IdentityEventConstants.Event.TRIGGER_NOTIFICATION, authenticatedUser, metaProperties, context);
+        }
+        try {
+            FrameworkUtils.startTenantFlow(authenticatedUser.getTenantDomain());
+            triggerEvent(IdentityEventConstants.Event.TRIGGER_NOTIFICATION, authenticatedUser, metaProperties,
+                    context);
+        } finally {
+            FrameworkUtils.endTenantFlow();
         }
         if (LoggerUtils.isDiagnosticLogsEnabled()) {
             DiagnosticLog.DiagnosticLogBuilder diagnosticLogBuilder = new DiagnosticLog.DiagnosticLogBuilder(
