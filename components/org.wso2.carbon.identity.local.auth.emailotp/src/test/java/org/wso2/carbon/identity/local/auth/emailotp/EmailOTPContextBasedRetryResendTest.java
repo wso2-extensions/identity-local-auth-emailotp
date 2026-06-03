@@ -190,6 +190,16 @@ public class EmailOTPContextBasedRetryResendTest {
         }
     }
 
+    @org.testng.annotations.AfterClass
+    public void tearDownClass() {
+
+        // AuthenticatorDataHolder is a static singleton populated during these tests. Clear it
+        // at class teardown so the state does not leak into subsequent test classes
+        // (e.g. EmailOTPExecutorTest asserts these are null).
+        AuthenticatorDataHolder.setRealmService(null);
+        AuthenticatorDataHolder.setIdentityEventService(null);
+    }
+
     @Test(description = "Flow: initiateAuthenticationRequest with context-based resend limit exceeded " +
             "enforces resend limit and does not redirect to email OTP page")
     public void testInitiateAuthenticationRequest_ContextResendLimitExceeded_EnforcesLimit() throws Exception {
