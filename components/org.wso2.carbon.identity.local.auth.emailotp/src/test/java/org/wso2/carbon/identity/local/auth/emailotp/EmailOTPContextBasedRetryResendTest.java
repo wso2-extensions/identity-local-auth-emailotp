@@ -122,6 +122,7 @@ public class EmailOTPContextBasedRetryResendTest {
 
     @BeforeMethod
     public void setUp() {
+
         emailOTPAuthenticator = new TestEmailOTPAuthenticator();
         request = mock(HttpServletRequest.class);
         response = mock(HttpServletResponse.class);
@@ -159,6 +160,7 @@ public class EmailOTPContextBasedRetryResendTest {
 
     @AfterMethod
     public void tearDown() {
+
         if (staticConfigurationFacade != null) {
             staticConfigurationFacade.close();
         }
@@ -186,6 +188,16 @@ public class EmailOTPContextBasedRetryResendTest {
         if (identityTenantUtil != null) {
             identityTenantUtil.close();
         }
+    }
+
+    @org.testng.annotations.AfterClass
+    public void tearDownClass() {
+
+        // AuthenticatorDataHolder is a static singleton populated during these tests. Clear it
+        // at class teardown so the state does not leak into subsequent test classes
+        // (e.g. EmailOTPExecutorTest asserts these are null).
+        AuthenticatorDataHolder.setRealmService(null);
+        AuthenticatorDataHolder.setIdentityEventService(null);
     }
 
     @Test(description = "Flow: initiateAuthenticationRequest with context-based resend limit exceeded " +
@@ -692,8 +704,8 @@ public class EmailOTPContextBasedRetryResendTest {
 
         addRuntimeParamsToContext(MAXIMUM_ALLOWED_FAILURE_LIMIT, "5");
         invokePrivateVoidMethod("handleInvalidOTPLoginAttempt",
-                new Class[]{AuthenticationContext.class, String.class},
-                new Object[]{context, TENANT_DOMAIN});
+                new Class[]{AuthenticationContext.class},
+                new Object[]{context});
         assertEquals(context.getProperty(EMAIL_OTP_RETRY_ATTEMPTS_CONTEXT_PROPERTY_NAME), 1);
     }
 
@@ -701,8 +713,8 @@ public class EmailOTPContextBasedRetryResendTest {
     public void testHandleInvalidOTPLoginAttempt_NoIncrementWhenDisabled() throws Exception {
 
         invokePrivateVoidMethod("handleInvalidOTPLoginAttempt",
-                new Class[]{AuthenticationContext.class, String.class},
-                new Object[]{context, TENANT_DOMAIN});
+                new Class[]{AuthenticationContext.class},
+                new Object[]{context});
         assertNull(context.getProperty(EMAIL_OTP_RETRY_ATTEMPTS_CONTEXT_PROPERTY_NAME));
     }
 
@@ -712,10 +724,74 @@ public class EmailOTPContextBasedRetryResendTest {
         addRuntimeParamsToContext(MAXIMUM_ALLOWED_FAILURE_LIMIT, "2");
         context.setProperty(EMAIL_OTP_RETRY_ATTEMPTS_CONTEXT_PROPERTY_NAME, 1);
         invokePrivateVoidMethod("handleInvalidOTPLoginAttempt",
-                new Class[]{AuthenticationContext.class, String.class},
-                new Object[]{context, TENANT_DOMAIN});
+                new Class[]{AuthenticationContext.class},
+                new Object[]{context});
         assertEquals(context.getProperty(FrameworkConstants.AUTH_ERROR_CODE),
                 FrameworkConstants.ERROR_STATUS_ALLOWED_RETRY_LIMIT_EXCEEDED);
+    }
+
+    @Test(description = "updateContextOTPRetryCount leaves a non-numeric stored value untouched " +
+            "so readers treat it as exceeded")
+    public void testUpdateContextOTPRetryCount_NonNumericValuePreserved() throws Exception {
+
+        context.setProperty(EMAIL_OTP_RETRY_ATTEMPTS_CONTEXT_PROPERTY_NAME, "not-a-number");
+        invokePrivateVoidMethod("updateContextOTPRetryCount",
+                new Class[]{AuthenticationContext.class}, new Object[]{context});
+        assertEquals(context.getProperty(EMAIL_OTP_RETRY_ATTEMPTS_CONTEXT_PROPERTY_NAME), "not-a-number");
+    }
+
+    @Test(description = "updateContextOTPRetryCount handles Long property value by parsing its string form")
+    public void testUpdateContextOTPRetryCount_LongValueIncrementsCorrectly() throws Exception {
+
+        context.setProperty(EMAIL_OTP_RETRY_ATTEMPTS_CONTEXT_PROPERTY_NAME, 4L);
+        invokePrivateVoidMethod("updateContextOTPRetryCount",
+                new Class[]{AuthenticationContext.class}, new Object[]{context});
+        assertEquals(context.getProperty(EMAIL_OTP_RETRY_ATTEMPTS_CONTEXT_PROPERTY_NAME), 5);
+    }
+
+    @Test(description = "handleInvalidOTPLoginAttempt treats a corrupt (non-numeric) retry count as limit exceeded")
+    public void testHandleInvalidOTPLoginAttempt_NonNumericRetryCountTreatedAsExceeded() throws Exception {
+
+        addRuntimeParamsToContext(MAXIMUM_ALLOWED_FAILURE_LIMIT, "5");
+        context.setProperty(EMAIL_OTP_RETRY_ATTEMPTS_CONTEXT_PROPERTY_NAME, "garbage");
+        invokePrivateVoidMethod("handleInvalidOTPLoginAttempt",
+                new Class[]{AuthenticationContext.class},
+                new Object[]{context});
+        // incrementContextCounter leaves the corrupt value untouched; the reader-side NFE handler
+        // in handleInvalidOTPLoginAttempt then routes through handleOTPRetryCountExceededScenario.
+        assertEquals(context.getProperty(FrameworkConstants.AUTH_ERROR_CODE),
+                FrameworkConstants.ERROR_STATUS_ALLOWED_RETRY_LIMIT_EXCEEDED);
+        assertEquals(context.getProperty(AbstractApplicationAuthenticator.SKIP_RETRY_FROM_AUTHENTICATOR), true);
+    }
+
+    @Test(description = "isOTPResendLimitExceeded returns true when stored resend count is non-numeric")
+    public void testIsOTPResendLimitExceeded_NonNumericResendCountReturnsTrue() throws Exception {
+
+        addRuntimeParamsToContext(MAXIMUM_RESEND_LIMIT, "5");
+        context.setProperty(EMAIL_OTP_RESEND_ATTEMPTS_CONTEXT_PROPERTY_NAME, "garbage");
+        boolean result = invokePrivateBooleanMethod("isOTPResendLimitExceeded",
+                new Class[]{AuthenticationContext.class},
+                new Object[]{context});
+        Assert.assertTrue(result);
+    }
+
+    @Test(description = "getRemainingNumberOfContextBasedRetryAttempts wraps NumberFormatException in " +
+            "AuthenticationFailedException")
+    public void testGetRemainingNumberOfContextBasedRetryAttempts_NonNumericThrowsAFE() throws Exception {
+
+        addRuntimeParamsToContext(MAXIMUM_ALLOWED_FAILURE_LIMIT, "5");
+        context.setProperty(EMAIL_OTP_RETRY_ATTEMPTS_CONTEXT_PROPERTY_NAME, "garbage");
+        try {
+            invokePrivateIntMethod("getRemainingNumberOfContextBasedRetryAttempts",
+                    new Class[]{AuthenticationContext.class},
+                    new Object[]{context});
+            Assert.fail("Expected AuthenticationFailedException");
+        } catch (InvocationTargetException e) {
+            Assert.assertTrue(e.getCause() instanceof AuthenticationFailedException,
+                    "Expected AuthenticationFailedException, got: " + e.getCause());
+            Assert.assertTrue(e.getCause().getCause() instanceof NumberFormatException,
+                    "Expected cause to be NumberFormatException, got: " + e.getCause().getCause());
+        }
     }
 
     @Test(description = "handleOTPResendCountExceededScenario with terminateFlow=true and user throws and sets " +
