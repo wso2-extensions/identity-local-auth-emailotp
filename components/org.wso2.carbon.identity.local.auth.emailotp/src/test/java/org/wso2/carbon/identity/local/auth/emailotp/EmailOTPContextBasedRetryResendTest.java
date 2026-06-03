@@ -122,6 +122,7 @@ public class EmailOTPContextBasedRetryResendTest {
 
     @BeforeMethod
     public void setUp() {
+
         emailOTPAuthenticator = new TestEmailOTPAuthenticator();
         request = mock(HttpServletRequest.class);
         response = mock(HttpServletResponse.class);
@@ -159,6 +160,7 @@ public class EmailOTPContextBasedRetryResendTest {
 
     @AfterMethod
     public void tearDown() {
+
         if (staticConfigurationFacade != null) {
             staticConfigurationFacade.close();
         }
