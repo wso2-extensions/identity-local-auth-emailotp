@@ -95,6 +95,10 @@ public class EmailOTPExecutor extends AbstractOTPExecutor {
         eventProperties.put(NotificationConstants.EmailNotification.EMAIL_TEMPLATE_TYPE, flowProperties.templateType);
         eventProperties.put(NotificationConstants.ARBITRARY_SEND_TO, email);
         eventProperties.put(NotificationConstants.TENANT_DOMAIN, tenantDomain);
+        if (StringUtils.isNotBlank(context.getApplicationId())) {
+            eventProperties.put(IdentityEventConstants.EventProperty.SERVICE_PROVIDER_UUID,
+                    context.getApplicationId());
+        }
 
         if (LoggerUtils.isDiagnosticLogsEnabled()) {
             DiagnosticLog.DiagnosticLogBuilder diagnosticLogBuilder = new DiagnosticLog.DiagnosticLogBuilder(

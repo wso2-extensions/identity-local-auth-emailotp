@@ -943,6 +943,10 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         if (StringUtils.isNotBlank(context.getServiceProviderName())) {
             metaProperties.put(AuthenticatorConstants.SERVICE_PROVIDER_NAME, context.getServiceProviderName());
         }
+        if (StringUtils.isNotBlank(context.getServiceProviderResourceId())) {
+            metaProperties.put(IdentityEventConstants.EventProperty.SERVICE_PROVIDER_UUID,
+                    context.getServiceProviderResourceId());
+        }
         metaProperties.put(CODE, otp);
         metaProperties.put(EMAIL_TEMPLATE_TYPE, AuthenticatorConstants.EMAIL_OTP_TEMPLATE_NAME);
         Map<String, String> emailOtpAuthenticatorParams = getRuntimeParams(context);
