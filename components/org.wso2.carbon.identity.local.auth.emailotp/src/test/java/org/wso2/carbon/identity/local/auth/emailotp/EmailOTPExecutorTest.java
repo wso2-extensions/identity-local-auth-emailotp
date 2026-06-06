@@ -58,6 +58,7 @@ public class EmailOTPExecutorTest {
     public static final String SUPER_TENANT = "carbon.super";
     public static final String OTP_CODE = "123456";
     public static final String TEST_USER_EMAIL = "test@wso2.com";
+    public static final String TEST_APPLICATION_ID = "test-app-uuid-1234";
     private EmailOTPExecutor emailOTPExecutor;
     private FlowExecutionContext flowExecutionContext;
 
@@ -146,6 +147,49 @@ public class EmailOTPExecutorTest {
         Assert.assertEquals(event.getEventProperties().get(NotificationConstants.EmailNotification.EMAIL_TEMPLATE_TYPE),
                 ExecutorConstants.EMAIL_OTP_VERIFY_TEMPLATE);
         Assert.assertEquals(event.getEventProperties().get(NotificationConstants.ARBITRARY_SEND_TO), TEST_USER_EMAIL);
+    }
+
+    @Test
+    public void testGetSendOTPEventIncludesServiceProviderUUID() {
+
+        when(flowExecutionContext.getFlowType()).thenReturn("REGISTRATION");
+        when(flowExecutionContext.getTenantDomain()).thenReturn(SUPER_TENANT);
+        when(flowExecutionContext.getApplicationId()).thenReturn(TEST_APPLICATION_ID);
+        FlowUser flowUser = mock(FlowUser.class);
+        when(flowExecutionContext.getFlowUser()).thenReturn(flowUser);
+        when(flowUser.getUsername()).thenReturn("testUser");
+        when(flowUser.getClaim(EMAIL_ADDRESS_CLAIM)).thenReturn(TEST_USER_EMAIL);
+        OTP otp = mock(OTP.class);
+        when(otp.getValue()).thenReturn(OTP_CODE);
+        when(otp.getGeneratedTimeInMillis()).thenReturn(System.currentTimeMillis());
+        when(otp.getExpiryTimeInMillis()).thenReturn(System.currentTimeMillis() + 60000);
+
+        Event event = emailOTPExecutor.getSendOTPEvent(OTPExecutorConstants.OTPScenarios.INITIAL_OTP,
+                otp, flowExecutionContext);
+        Assert.assertNotNull(event);
+        Assert.assertEquals(event.getEventProperties().get(IdentityEventConstants.EventProperty.SERVICE_PROVIDER_UUID),
+                TEST_APPLICATION_ID);
+    }
+
+    @Test
+    public void testGetSendOTPEventOmitsServiceProviderUUIDWhenApplicationIdBlank() {
+
+        when(flowExecutionContext.getFlowType()).thenReturn("REGISTRATION");
+        when(flowExecutionContext.getTenantDomain()).thenReturn(SUPER_TENANT);
+        when(flowExecutionContext.getApplicationId()).thenReturn("");
+        FlowUser flowUser = mock(FlowUser.class);
+        when(flowExecutionContext.getFlowUser()).thenReturn(flowUser);
+        when(flowUser.getUsername()).thenReturn("testUser");
+        when(flowUser.getClaim(EMAIL_ADDRESS_CLAIM)).thenReturn(TEST_USER_EMAIL);
+        OTP otp = mock(OTP.class);
+        when(otp.getValue()).thenReturn(OTP_CODE);
+        when(otp.getGeneratedTimeInMillis()).thenReturn(System.currentTimeMillis());
+        when(otp.getExpiryTimeInMillis()).thenReturn(System.currentTimeMillis() + 60000);
+
+        Event event = emailOTPExecutor.getSendOTPEvent(OTPExecutorConstants.OTPScenarios.INITIAL_OTP,
+                otp, flowExecutionContext);
+        Assert.assertNotNull(event);
+        Assert.assertNull(event.getEventProperties().get(IdentityEventConstants.EventProperty.SERVICE_PROVIDER_UUID));
     }
 
     @Test

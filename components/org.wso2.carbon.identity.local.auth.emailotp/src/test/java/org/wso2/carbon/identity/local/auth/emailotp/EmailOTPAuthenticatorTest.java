@@ -54,6 +54,7 @@ import org.wso2.carbon.identity.claim.metadata.mgt.ClaimMetadataManagementServic
 import org.wso2.carbon.identity.core.util.IdentityConfigParser;
 import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
 import org.wso2.carbon.identity.core.util.IdentityUtil;
+import org.wso2.carbon.identity.event.IdentityEventConstants;
 import org.wso2.carbon.identity.event.event.Event;
 import org.wso2.carbon.identity.event.services.IdentityEventService;
 import org.wso2.carbon.identity.governance.IdentityGovernanceService;
@@ -151,6 +152,7 @@ public class EmailOTPAuthenticatorTest {
     private static final String DEFAULT_USER_STORE = "DEFAULT";
     private static final String DUMMY_LOGIN_PAGE_URL = "dummyLoginPageURL";
     private static final String SAMPLE_LOCALE = "fr-FR";
+    private static final String SERVICE_PROVIDER_RESOURCE_ID = "sp-uuid-9f8e7d6c-5b4a-3210";
 
     @BeforeMethod
     public void setUp() {
@@ -914,6 +916,63 @@ public class EmailOTPAuthenticatorTest {
             Assert.assertTrue(capturedEvents.stream().noneMatch(
                             event -> "POST_NON_BASIC_AUTHENTICATION".equals(event.getEventName())),
                     "POST_NON_BASIC_AUTHENTICATION event should NOT be triggered when account is locked.");
+        }
+    }
+
+    @DataProvider(name = "serviceProviderResourceIdDataProvider")
+    public Object[][] serviceProviderResourceIdDataProvider() {
+
+        return new Object[][] {
+                { SERVICE_PROVIDER_RESOURCE_ID, SERVICE_PROVIDER_RESOURCE_ID },
+                { null, null },
+                { "", null }
+        };
+    }
+
+    @Test(dataProvider = "serviceProviderResourceIdDataProvider",
+            description = "TRIGGER_NOTIFICATION metaProperties should carry SERVICE_PROVIDER_UUID iff " +
+                    "context.getServiceProviderResourceId() is non-blank.")
+    public void testServiceProviderUuidInTriggerNotificationMetaProperties(String resourceId,
+                                                                           String expectedUuid) throws Exception {
+
+        Map<String, String> claimMap = new HashMap<>();
+        claimMap.put(EMAIL_ADDRESS_CLAIM, EMAIL_ADDRESS);
+
+        setAuthenticatorConfig();
+        configureAuthenticatedUser(true);
+        configureAuthenticatorDataHolder();
+        configureIdentityProvider();
+        context.setServiceProviderResourceId(resourceId);
+
+        when(FederatedAuthenticatorUtil.getLoggedInFederatedUser(any())).thenReturn(USERNAME);
+        when(FederatedAuthenticatorUtil.getLocalUsernameAssociatedWithFederatedUser(any(), any())).thenReturn(USERNAME);
+        when(realmService.getTenantUserRealm(TENANT_ID)).thenReturn(userRealm);
+        when(userRealm.getUserStoreManager()).thenReturn(userStoreManager);
+        when(userStoreManager.getUserClaimValues(any(), any(), any())).thenReturn(claimMap);
+        when(FileBasedConfigurationBuilder.getInstance()).thenReturn(fileBasedConfigurationBuilder);
+        when(CaptchaDataHolder.getInstance()).thenReturn(captchaDataHolder);
+        when(IdentityConfigParser.getInstance()).thenReturn(identityConfigParser);
+        Map<String, Object> configs = new HashMap<>();
+        configs.put(HIDE_USER_EXISTENCE_CONFIG, "false");
+        when(identityConfigParser.getConfiguration()).thenReturn(configs);
+
+        emailOTPAuthenticator.process(httpServletRequest, httpServletResponse, context);
+
+        ArgumentCaptor<Event> eventCaptor = ArgumentCaptor.forClass(Event.class);
+        verify(identityEventService, times(2)).handleEvent(eventCaptor.capture());
+        Event triggerNotificationEvent = eventCaptor.getAllValues().stream()
+                .filter(e -> IdentityEventConstants.Event.TRIGGER_NOTIFICATION.equals(e.getEventName()))
+                .findFirst()
+                .orElse(null);
+        assertNotNull(triggerNotificationEvent, "TRIGGER_NOTIFICATION event should have been emitted.");
+
+        Object actual = triggerNotificationEvent.getEventProperties()
+                .get(IdentityEventConstants.EventProperty.SERVICE_PROVIDER_UUID);
+        if (expectedUuid == null) {
+            assertNull(actual, "SERVICE_PROVIDER_UUID should be absent when resource id is blank.");
+        } else {
+            assertEquals(actual, expectedUuid,
+                    "SERVICE_PROVIDER_UUID should be propagated from context.getServiceProviderResourceId().");
         }
     }
 }
