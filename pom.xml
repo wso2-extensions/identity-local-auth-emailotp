@@ -326,7 +326,7 @@
         <carbon.identity.governance.version>1.11.122</carbon.identity.governance.version>
         <carbon.identity.handler.event.account.lock.version>1.8.2</carbon.identity.handler.event.account.lock.version>
         <carbon.extension.identity.helper.version>1.0.12</carbon.extension.identity.helper.version>
-        <carbon.identity.event.handler.notification.version>1.9.45</carbon.identity.event.handler.notification.version>
+        <carbon.identity.event.handler.notification.version>1.13.5</carbon.identity.event.handler.notification.version>
         <identity.auth.otp.commons.version>1.0.22</identity.auth.otp.commons.version>
         <owasp.encoder.version>1.2.0.wso2v1</owasp.encoder.version>
         <mockito-core.version>5.3.1</mockito-core.version>

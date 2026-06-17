@@ -41,6 +41,7 @@ import org.wso2.carbon.identity.application.authentication.framework.model.Authe
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatorMessage;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatorParamMetadata;
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants;
+import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants.AuthenticatorMessageType;
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkUtils;
 import org.wso2.carbon.identity.application.common.model.ClaimConfig;
 import org.wso2.carbon.identity.application.common.model.ClaimMapping;
@@ -956,6 +957,11 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             metaProperties.put(EMAIL_TEMPLATE_TYPE, emailTemplateType);
         }
         metaProperties.put(ARBITRARY_SEND_TO, email);
+        // If notify on email sending failure is enabled, send the email synchronously so that failures are surfaced.
+        if (isNotifyEmailSendingFailureEnabled(tenantDomain, context)) {
+            metaProperties.put(NotificationConstants.EmailNotification.SYNC_EMAIL_NOTIFICATION,
+                Boolean.TRUE.toString());
+        }
         String maskedEmailAddress = getMaskedEmailAddress(authenticatedUser.getUserName(), email, tenantDomain,
                 context);
         setAuthenticatorMessage(context, maskedEmailAddress);
@@ -1050,6 +1056,14 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
                 url = url + AuthenticatorConstants.RESEND_CODE_PARAM;
             }
             url = url + getCaptchaParams(request, context);
+            // Propagate the error code to the frontend if the error is due to an email provider failure.
+            AuthenticatorMessage authenticatorMessage =
+                    (AuthenticatorMessage) context.getProperty(AUTHENTICATOR_MESSAGE);
+            if (authenticatorMessage != null && AuthenticatorMessageType.ERROR.equals(authenticatorMessage.getType())
+                && authenticatorMessage.getCode() != null 
+                && authenticatorMessage.getCode().startsWith(AuthenticatorConstants.EMAIL_PROVIDER_ERROR_CODE_PREFIX)) {
+                url = url + AuthenticatorConstants.ERROR_CODE_QUERY_PARAM + authenticatorMessage.getCode();
+            }
             response.sendRedirect(url);
             context.setProperty(AuthenticatorConstants.IS_REDIRECT_TO_EMAIL_OTP, "true");
             if (LoggerUtils.isDiagnosticLogsEnabled()) {
@@ -1232,6 +1246,11 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             }
             AuthenticatorDataHolder.getIdentityEventService().handleEvent(identityMgtEvent);
         } catch (IdentityEventException e) {
+            String errorCode = e.getErrorCode();
+            if (StringUtils.isNotBlank(errorCode) &&
+            errorCode.startsWith(AuthenticatorConstants.EMAIL_PROVIDER_ERROR_CODE_PREFIX)) {
+                throw handleAuthErrorScenario(errorCode, e.getMessage(), e, context);
+            }
             throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_TRIGGERING_EVENT, e,
                     context, eventName, user.getUserName());
         }
@@ -1719,6 +1738,20 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         }
     }
 
+    private boolean isNotifyEmailSendingFailureEnabled(String tenantDomain, AuthenticationContext context)
+            throws AuthenticationFailedException {
+
+        try {
+            return CommonUtils.isNotifyEmailSendingFailureEnabled(tenantDomain);
+        } catch (IdentityGovernanceException exception) {
+            EmailOtpAuthenticatorServerException e = new EmailOtpAuthenticatorServerException(
+                    AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_CONFIG.getCode(),
+                    AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_CONFIG.getMessage(), exception);
+            throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_GETTING_CONFIG,
+                    e, context);
+        }
+    }
+
     @SuppressFBWarnings("FORMAT_STRING_MANIPULATION")
     private InvalidCredentialsException handleInvalidCredentialsScenario(AuthenticatorConstants.ErrorMessages error,
                                                                          String... data) {
@@ -1763,6 +1796,23 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             message = String.format(message, data);
         }
         String errorCode = error.getCode();
+
+        if (context != null) {
+            AuthenticatorMessage authenticatorMessage = new AuthenticatorMessage(FrameworkConstants.
+                    AuthenticatorMessageType.ERROR, errorCode, message, null);
+            context.setProperty(AUTHENTICATOR_MESSAGE, authenticatorMessage);
+        }
+
+        if (throwable == null) {
+            return new AuthenticationFailedException(errorCode, message);
+        }
+
+        return new AuthenticationFailedException(errorCode, message, throwable);
+    }
+
+    private AuthenticationFailedException handleAuthErrorScenario(String errorCode, String message,
+                                                                  Throwable throwable,
+                                                                  AuthenticationContext context) {
 
         if (context != null) {
             AuthenticatorMessage authenticatorMessage = new AuthenticatorMessage(FrameworkConstants.

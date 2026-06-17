@@ -80,6 +80,8 @@ public class EmailOTPAuthenticatorConfigImpl implements IdentityConnectorConfig 
         nameMapping.put(
                 AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_RESEND_BLOCK_DURATION,
                 "Blocking duration in minutes upon exceeding allowed resend attempts");
+        nameMapping.put(AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_NOTIFY_EMAIL_SENDING_FAILURE,
+                "Notify email sending failure");
         return nameMapping;
     }
 
@@ -100,6 +102,8 @@ public class EmailOTPAuthenticatorConfigImpl implements IdentityConnectorConfig 
         descriptionMapping.put(AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_RESEND_BLOCK_DURATION,
                 "Time in minutes to block OTP resend " +
                         "functionality upon exceeding allowed resend attempts");
+        descriptionMapping.put(AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_NOTIFY_EMAIL_SENDING_FAILURE,
+                "Enable notifying connection failure errors when connecting to the email provider");
         return descriptionMapping;
     }
 
@@ -114,6 +118,7 @@ public class EmailOTPAuthenticatorConfigImpl implements IdentityConnectorConfig 
         properties.add(AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_USE_NUMERIC_CHARS);
         properties.add(AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_RESEND_ATTEMPTS_COUNT);
         properties.add(AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_RESEND_BLOCK_DURATION);
+        properties.add(AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_NOTIFY_EMAIL_SENDING_FAILURE);
         return properties.toArray(new String[0]);
     }
 
@@ -128,6 +133,7 @@ public class EmailOTPAuthenticatorConfigImpl implements IdentityConnectorConfig 
         String otpLength = Integer.toString(AuthenticatorConstants.DEFAULT_OTP_LENGTH);
         String resendAttempts = Integer.toString(AuthenticatorConstants.DEFAULT_OTP_RESEND_ATTEMPTS);
         String blockingTime = Integer.toString(AuthenticatorConstants.DEFAULT_OTP_RESEND_BLOCK_DURATION);
+        String notifyEmailSendingFailure = "false";
 
         String otpExpiryTimeProperty = IdentityUtil.getProperty(AuthenticatorConstants.ConnectorConfig.OTP_EXPIRY_TIME);
         String useBackupCodesProperty = IdentityUtil.getProperty(
@@ -142,6 +148,8 @@ public class EmailOTPAuthenticatorConfigImpl implements IdentityConnectorConfig 
                 AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_RESEND_ATTEMPTS_COUNT);
         String blockingTimeProperty = IdentityUtil.getProperty(
                 AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_RESEND_BLOCK_DURATION);
+        String notifyEmailSendingFailureProperty = IdentityUtil.getProperty(
+                AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_NOTIFY_EMAIL_SENDING_FAILURE);
 
         if (StringUtils.isNotBlank(otpExpiryTimeProperty)) {
             otpExpiryTime = otpExpiryTimeProperty;
@@ -164,6 +172,9 @@ public class EmailOTPAuthenticatorConfigImpl implements IdentityConnectorConfig 
         if (StringUtils.isNotBlank(blockingTimeProperty)) {
             blockingTime = blockingTimeProperty;
         }
+        if (StringUtils.isNotBlank(notifyEmailSendingFailureProperty)) {
+            notifyEmailSendingFailure = notifyEmailSendingFailureProperty;
+        }
         Map<String, String> defaultProperties = new HashMap<>();
         defaultProperties.put(AuthenticatorConstants.ConnectorConfig.OTP_EXPIRY_TIME, otpExpiryTime);
         defaultProperties.put(AuthenticatorConstants.ConnectorConfig.ENABLE_BACKUP_CODES, useBackupCodes);
@@ -173,6 +184,8 @@ public class EmailOTPAuthenticatorConfigImpl implements IdentityConnectorConfig 
         defaultProperties.put(AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_LENGTH, otpLength);
         defaultProperties.put(AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_RESEND_ATTEMPTS_COUNT, resendAttempts);
         defaultProperties.put(AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_RESEND_BLOCK_DURATION, blockingTime);
+        defaultProperties.put(AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_NOTIFY_EMAIL_SENDING_FAILURE,
+                notifyEmailSendingFailure);
 
         Properties properties = new Properties();
         properties.putAll(defaultProperties);

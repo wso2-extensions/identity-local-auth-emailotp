@@ -32,6 +32,7 @@ public class AuthenticatorConstants {
     public static final String EMAIL_OTP_AUTHENTICATOR_NAME = "email-otp-authenticator";
     public static final String EMAIL_OTP_AUTHENTICATOR_FRIENDLY_NAME = "Email OTP";
     public static final String EMAIL_AUTHENTICATOR_ERROR_PREFIX = "ETP";
+    public static final String EMAIL_PROVIDER_ERROR_CODE_PREFIX = "EP-";
     public static final String EMAIL_ADDRESS_MASKING_CHARACTER = "*";
     public static final long DEFAULT_EMAIL_OTP_VALIDITY_IN_MILLIS = 300000;
     public static final int DEFAULT_OTP_LENGTH = 6;
@@ -133,6 +134,7 @@ public class AuthenticatorConstants {
         public static final String EMAIL_OTP_USE_NUMERIC_CHARS = "EmailOTP.OtpRegex.UseNumericChars";
         public static final String EMAIL_OTP_RESEND_ATTEMPTS_COUNT  = "EmailOTP.ResendAttemptsCount";
         public static final String EMAIL_OTP_RESEND_BLOCK_DURATION = "EmailOTP.ResendBlockDuration";
+        public static final String EMAIL_OTP_NOTIFY_EMAIL_SENDING_FAILURE = "EmailOTP.NotifyEmailSendingFailure";
     }
 
     /**
