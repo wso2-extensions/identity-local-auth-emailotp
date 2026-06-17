@@ -1057,12 +1057,19 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             }
             url = url + getCaptchaParams(request, context);
             // Propagate the error code to the frontend if the error is due to an email provider failure.
-            AuthenticatorMessage authenticatorMessage =
-                    (AuthenticatorMessage) context.getProperty(AUTHENTICATOR_MESSAGE);
-            if (authenticatorMessage != null && AuthenticatorMessageType.ERROR.equals(authenticatorMessage.getType())
-                && authenticatorMessage.getCode() != null 
-                && authenticatorMessage.getCode().startsWith(AuthenticatorConstants.EMAIL_PROVIDER_ERROR_CODE_PREFIX)) {
-                url = url + AuthenticatorConstants.ERROR_CODE_QUERY_PARAM + authenticatorMessage.getCode();
+            if (isNotifyEmailSendingFailureEnabled(tenantDomain, context)) {
+                AuthenticatorMessage authenticatorMessage =
+                        (AuthenticatorMessage) context.getProperty(AUTHENTICATOR_MESSAGE);
+                if (authenticatorMessage != null 
+                        && AuthenticatorMessageType.ERROR.equals(authenticatorMessage.getType())
+                        && authenticatorMessage.getCode() != null
+                        && authenticatorMessage.getCode().startsWith(
+                                AuthenticatorConstants.EMAIL_PROVIDER_ERROR_CODE_PREFIX)) {
+                    if (!url.contains(AuthenticatorConstants.RETRY_QUERY_PARAMS)) {
+                        url = url + AuthenticatorConstants.RETRY_QUERY_PARAMS;
+                    }
+                    url = url + AuthenticatorConstants.ERROR_CODE_QUERY_PARAM + authenticatorMessage.getCode();
+                }
             }
             response.sendRedirect(url);
             context.setProperty(AuthenticatorConstants.IS_REDIRECT_TO_EMAIL_OTP, "true");
@@ -1246,10 +1253,12 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             }
             AuthenticatorDataHolder.getIdentityEventService().handleEvent(identityMgtEvent);
         } catch (IdentityEventException e) {
-            String errorCode = e.getErrorCode();
-            if (StringUtils.isNotBlank(errorCode) &&
-            errorCode.startsWith(AuthenticatorConstants.EMAIL_PROVIDER_ERROR_CODE_PREFIX)) {
-                throw handleAuthErrorScenario(errorCode, e.getMessage(), e, context);
+            if (isNotifyEmailSendingFailureEnabled(user.getTenantDomain(), context)) {
+                String errorCode = e.getErrorCode();
+                if (StringUtils.isNotBlank(errorCode) &&
+                        errorCode.startsWith(AuthenticatorConstants.EMAIL_PROVIDER_ERROR_CODE_PREFIX)) {
+                    throw handleAuthErrorScenario(errorCode, e.getMessage(), e, context);
+                }
             }
             throw handleAuthErrorScenario(AuthenticatorConstants.ErrorMessages.ERROR_CODE_ERROR_TRIGGERING_EVENT, e,
                     context, eventName, user.getUserName());
