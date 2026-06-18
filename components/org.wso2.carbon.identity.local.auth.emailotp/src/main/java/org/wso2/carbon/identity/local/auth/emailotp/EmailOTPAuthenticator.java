@@ -409,7 +409,18 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
                 updateContextOTPResendCount(context);
             }
 
-            sendEmailOtp(email, applicationTenantDomain, authenticatedUserFromContext, scenario, context);
+            boolean notifyOnEmailSendingFailure = isNotifyEmailSendingFailureEnabled(applicationTenantDomain, context);
+            try {
+                sendEmailOtp(email, applicationTenantDomain, authenticatedUserFromContext, scenario, context,
+                        notifyOnEmailSendingFailure);
+            } catch (AuthenticationFailedException e) {
+                String errorCode = e.getErrorCode();
+                if (!(notifyOnEmailSendingFailure
+                        && StringUtils.isNotBlank(errorCode)
+                        && errorCode.startsWith(AuthenticatorConstants.EMAIL_PROVIDER_ERROR_CODE_PREFIX))) {
+                    throw e;
+                }
+            }
             if (shouldUpdateUserClaim) {
                 Map<String, String> claimMap = new HashMap<>();
                 claimMap.put(EMAIL_OTP_RESEND_ATTEMPTS_CLAIM, String.valueOf((otpResendCount)));
@@ -931,7 +942,8 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
      * @throws AuthenticationFailedException If an error occurred while sending the OTP notification to the user.
      */
     private void sendEmailOtp(String email, String tenantDomain, AuthenticatedUser authenticatedUser,
-                              AuthenticatorConstants.AuthenticationScenarios scenario, AuthenticationContext context)
+                              AuthenticatorConstants.AuthenticationScenarios scenario, AuthenticationContext context,
+                              boolean notifyOnEmailSendingFailure)
             throws AuthenticationFailedException {
 
         String otp = generateOTP(tenantDomain, context);
@@ -958,7 +970,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         }
         metaProperties.put(ARBITRARY_SEND_TO, email);
         // If notify on email sending failure is enabled, send the email synchronously so that failures are surfaced.
-        if (isNotifyEmailSendingFailureEnabled(tenantDomain, context)) {
+        if (notifyOnEmailSendingFailure) {
             metaProperties.put(NotificationConstants.EmailNotification.SYNC_EMAIL_NOTIFICATION,
                 Boolean.TRUE.toString());
         }
@@ -1804,19 +1816,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         if (data != null) {
             message = String.format(message, data);
         }
-        String errorCode = error.getCode();
-
-        if (context != null) {
-            AuthenticatorMessage authenticatorMessage = new AuthenticatorMessage(FrameworkConstants.
-                    AuthenticatorMessageType.ERROR, errorCode, message, null);
-            context.setProperty(AUTHENTICATOR_MESSAGE, authenticatorMessage);
-        }
-
-        if (throwable == null) {
-            return new AuthenticationFailedException(errorCode, message);
-        }
-
-        return new AuthenticationFailedException(errorCode, message, throwable);
+        return handleAuthErrorScenario(error.getCode(), message, throwable, context);
     }
 
     private AuthenticationFailedException handleAuthErrorScenario(String errorCode, String message,

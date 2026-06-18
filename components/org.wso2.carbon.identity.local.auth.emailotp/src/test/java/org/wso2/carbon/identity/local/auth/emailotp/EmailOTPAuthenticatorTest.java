@@ -90,6 +90,7 @@ import javax.servlet.http.HttpServletResponse;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -841,8 +842,10 @@ public class EmailOTPAuthenticatorTest {
         }
     }
 
-    @Test(description = "Test that when triggerEvent throws IdentityEventException with an 'EP-' error code, " +
-            "the AuthenticatorMessage in context is set to ERROR type with that error code.")
+    @Test(description = "Test that when triggerEvent throws IdentityEventException with an 'EP-' error code and " +
+            "notify is enabled, the EP error from sendEmailOtp is swallowed by processInitialResponse but " +
+            "the AuthenticatorMessage is still set in context. The EP error from publishPostEmailOTPGeneratedEvent " +
+            "still propagates as AuthenticationFailedException.")
     public void testEmailProviderErrorCodeSetsErrorAuthenticatorMessageInContext() throws Exception {
 
         Map<String, String> claimMap = new HashMap<>();
@@ -888,6 +891,100 @@ public class EmailOTPAuthenticatorTest {
                 "AuthenticatorMessage type must be ERROR for EP errors.");
         assertEquals(message.getCode(), epErrorCode,
                 "AuthenticatorMessage code must match the EP error code.");
+    }
+
+    @Test(description = "Test that when sendEmailOtp throws an AuthenticationFailedException with an 'EP-' error " +
+            "code and notify is enabled, the exception is swallowed and the flow continues. " +
+            "The AuthenticatorMessage with the EP error code remains set in context.")
+    public void testEPErrorFromSendEmailOtpSwallowedWhenNotifyEnabled() throws Exception {
+
+        Map<String, String> claimMap = new HashMap<>();
+        claimMap.put(EMAIL_ADDRESS_CLAIM, EMAIL_ADDRESS);
+
+        setAuthenticatorConfig();
+        configureAuthenticatedUser(true);
+        configureAuthenticatorDataHolder();
+        configureIdentityProvider();
+        context.setTenantDomain(TENANT_DOMAIN);
+
+        when(FederatedAuthenticatorUtil.getLoggedInFederatedUser(any())).thenReturn(USERNAME);
+        when(FederatedAuthenticatorUtil.getLocalUsernameAssociatedWithFederatedUser(any(), any()))
+                .thenReturn(USERNAME);
+        when(realmService.getTenantUserRealm(TENANT_ID)).thenReturn(userRealm);
+        when(userRealm.getUserStoreManager()).thenReturn(userStoreManager);
+        when(userStoreManager.getUserClaimValues(any(), any(), any())).thenReturn(claimMap);
+        when(FileBasedConfigurationBuilder.getInstance()).thenReturn(fileBasedConfigurationBuilder);
+        when(CaptchaDataHolder.getInstance()).thenReturn(captchaDataHolder);
+        when(IdentityConfigParser.getInstance()).thenReturn(identityConfigParser);
+        Map<String, Object> configs = new HashMap<>();
+        configs.put(HIDE_USER_EXISTENCE_CONFIG, "false");
+        when(identityConfigParser.getConfiguration()).thenReturn(configs);
+
+        commonUtils.when(() -> CommonUtils.isNotifyEmailSendingFailureEnabled(anyString())).thenReturn(true);
+
+        String epErrorCode = AuthenticatorConstants.EMAIL_PROVIDER_ERROR_CODE_PREFIX + "12345";
+        String epErrorMessage = "Email provider connection failed";
+
+        // Only throw for TRIGGER_NOTIFICATION (sendEmailOtp path); let POST_GENERATE_EMAIL_OTP succeed.
+        doAnswer(invocation -> {
+            Event event = invocation.getArgument(0);
+            if (IdentityEventConstants.Event.TRIGGER_NOTIFICATION.equals(event.getEventName())) {
+                throw new IdentityEventException(epErrorCode, epErrorMessage);
+            }
+            return null;
+        }).when(identityEventService).handleEvent(any());
+
+        // process() must complete without throwing — the EP error from sendEmailOtp is swallowed.
+        emailOTPAuthenticator.process(httpServletRequest, httpServletResponse, context);
+
+        AuthenticatorMessage message = (AuthenticatorMessage) context.getProperty("authenticatorMessage");
+        assertNotNull(message, "AuthenticatorMessage must be set in context even when the EP exception is swallowed.");
+        assertEquals(message.getType(), FrameworkConstants.AuthenticatorMessageType.ERROR,
+                "AuthenticatorMessage type must be ERROR for EP errors.");
+        assertEquals(message.getCode(), epErrorCode,
+                "AuthenticatorMessage code must carry the EP error code.");
+    }
+
+    @Test(description = "Test that when sendEmailOtp throws an AuthenticationFailedException with a non-'EP-' " +
+            "error code, the exception is NOT swallowed even when notify email sending failure is enabled.")
+    public void testNonEPErrorFromSendEmailOtpNotSwallowedWhenNotifyEnabled() throws Exception {
+
+        Map<String, String> claimMap = new HashMap<>();
+        claimMap.put(EMAIL_ADDRESS_CLAIM, EMAIL_ADDRESS);
+
+        setAuthenticatorConfig();
+        configureAuthenticatedUser(true);
+        configureAuthenticatorDataHolder();
+        configureIdentityProvider();
+        context.setTenantDomain(TENANT_DOMAIN);
+
+        when(FederatedAuthenticatorUtil.getLoggedInFederatedUser(any())).thenReturn(USERNAME);
+        when(FederatedAuthenticatorUtil.getLocalUsernameAssociatedWithFederatedUser(any(), any()))
+                .thenReturn(USERNAME);
+        when(realmService.getTenantUserRealm(TENANT_ID)).thenReturn(userRealm);
+        when(userRealm.getUserStoreManager()).thenReturn(userStoreManager);
+        when(userStoreManager.getUserClaimValues(any(), any(), any())).thenReturn(claimMap);
+        when(FileBasedConfigurationBuilder.getInstance()).thenReturn(fileBasedConfigurationBuilder);
+        when(CaptchaDataHolder.getInstance()).thenReturn(captchaDataHolder);
+        when(IdentityConfigParser.getInstance()).thenReturn(identityConfigParser);
+        Map<String, Object> configs = new HashMap<>();
+        configs.put(HIDE_USER_EXISTENCE_CONFIG, "false");
+        when(identityConfigParser.getConfiguration()).thenReturn(configs);
+
+        // Notify is enabled, but a non-EP error is thrown — the catch block must still re-throw.
+        commonUtils.when(() -> CommonUtils.isNotifyEmailSendingFailureEnabled(anyString())).thenReturn(true);
+
+        String nonEpErrorCode = "ETP-10001";
+        doThrow(new IdentityEventException(nonEpErrorCode, "Standard identity event error"))
+                .when(identityEventService).handleEvent(any());
+
+        try {
+            emailOTPAuthenticator.process(httpServletRequest, httpServletResponse, context);
+            Assert.fail("AuthenticationFailedException should have been thrown for non-EP errors.");
+        } catch (AuthenticationFailedException e) {
+            Assert.assertFalse(e.getErrorCode().startsWith(AuthenticatorConstants.EMAIL_PROVIDER_ERROR_CODE_PREFIX),
+                    "Exception error code must NOT start with the EP prefix for non-EP errors.");
+        }
     }
 
     @Test(description = "Test that when triggerEvent throws IdentityEventException with a non-'EP-' code, " +
