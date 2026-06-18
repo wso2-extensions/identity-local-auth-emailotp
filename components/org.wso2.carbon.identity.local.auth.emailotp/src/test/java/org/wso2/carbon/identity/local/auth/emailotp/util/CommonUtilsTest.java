@@ -35,8 +35,11 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_LENGTH;
+import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_NOTIFY_EMAIL_SENDING_FAILURE;
 import static org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_USE_ALPHANUMERIC_CHARS;
 
 public class CommonUtilsTest {
@@ -102,6 +105,30 @@ public class CommonUtilsTest {
             String otpLength = CommonUtils.getEmailAuthenticatorConfig(EMAIL_OTP_LENGTH, SUPER_TENANT);
             assertNotNull(otpLength, "OTP length should not be null.");
             assertEquals(otpLength, "6", "OTP length should be 6.");
+        }
+    }
+
+    @Test
+    public void testIsNotifyEmailSendingFailureEnabledWhenConfiguredTrue() throws IdentityGovernanceException {
+
+        try (MockedStatic<AuthenticatorDataHolder> dataHolderMockedStatic = mockStatic(AuthenticatorDataHolder.class)) {
+            mockGovernanceService(
+                    Collections.singletonMap(EMAIL_OTP_NOTIFY_EMAIL_SENDING_FAILURE, "true"),
+                    dataHolderMockedStatic);
+            boolean result = CommonUtils.isNotifyEmailSendingFailureEnabled(SUPER_TENANT);
+            assertTrue(result, "Should return true when notify email sending failure is configured as true.");
+        }
+    }
+
+    @Test
+    public void testIsNotifyEmailSendingFailureEnabledWhenConfiguredFalse() throws IdentityGovernanceException {
+
+        try (MockedStatic<AuthenticatorDataHolder> dataHolderMockedStatic = mockStatic(AuthenticatorDataHolder.class)) {
+            mockGovernanceService(
+                    Collections.singletonMap(EMAIL_OTP_NOTIFY_EMAIL_SENDING_FAILURE, "false"),
+                    dataHolderMockedStatic);
+            boolean result = CommonUtils.isNotifyEmailSendingFailureEnabled(SUPER_TENANT);
+            assertFalse(result, "Should return false when notify email sending failure is configured as false.");
         }
     }
 

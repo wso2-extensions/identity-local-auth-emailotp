@@ -87,6 +87,19 @@ public class CommonUtils {
     }
 
     /**
+     * Check if notification should be sent on email sending failure.
+     *
+     * @param tenantDomain Tenant domain.
+     * @return True if notification on email sending failure is enabled.
+     * @throws IdentityGovernanceException Identity Governance Exception.
+     */
+    public static boolean isNotifyEmailSendingFailureEnabled(String tenantDomain) throws IdentityGovernanceException {
+
+        return Boolean.parseBoolean(getEmailAuthenticatorConfig(
+                AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_NOTIFY_EMAIL_SENDING_FAILURE, tenantDomain));
+    }
+
+    /**
      * Get the email masking pattern.
      *
      * @param tenantDomain Tenant domain.
