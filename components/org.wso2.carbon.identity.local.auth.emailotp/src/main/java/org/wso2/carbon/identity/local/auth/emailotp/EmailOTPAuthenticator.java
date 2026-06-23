@@ -215,6 +215,28 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         }
     }
 
+    /**
+     * Implicit reinitiation: silently re-triggers OTP generation with no submitted code, no RESEND
+     * flag, not a retry, and an OTP already issued in this context.
+     */
+    private boolean isImplicitOTPReinitiation(HttpServletRequest request, AuthenticationContext context) {
+
+        return !context.isRetrying()
+                && StringUtils.isBlank(request.getParameter(getCurrentCodeParam(request)))
+                && !Boolean.parseBoolean(request.getParameter(AuthenticatorConstants.RESEND))
+                && context.getProperty(AuthenticatorConstants.SENT_OTP_TOKEN_TIME_PREFIX + getName()) != null;
+    }
+
+    /**
+     * CountReinitiationsAsResends toggle. Defaults to true when unconfigured.
+     */
+    private boolean isCountReinitiationsAsResendsEnabled(AuthenticationContext context) {
+
+        Optional<Boolean> param = AuthenticatorUtils.getBooleanRuntimeParamByName(getRuntimeParams(context),
+                AuthenticatorConstants.COUNT_REINITIATIONS_AS_RESENDS);
+        return !param.isPresent() || param.get();
+    }
+
     @Override
     protected void initiateAuthenticationRequest(HttpServletRequest request,
                                                  HttpServletResponse response, AuthenticationContext context)
@@ -359,6 +381,14 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             boolean shouldUpdateUserClaim = false;
             boolean isUserBasedResendLimitEnabled =
                     isUserBasedOTPResendBlockingEnabled(applicationTenantDomain, context) && isUserExists;
+            /*
+             * Implicit reinitiation looks should consume a resend slot when the toggle is on: check the limit before
+             * sending, increment only after a successful send.
+             */
+            boolean countAgainstResendLimit =
+                    scenario == AuthenticatorConstants.AuthenticationScenarios.RESEND_OTP
+                            || (isImplicitOTPReinitiation(request, context)
+                                    && isCountReinitiationsAsResendsEnabled(context));
             if (isUserBasedResendLimitEnabled) {
                 String userResendCountStr =
                         getUserClaimValueFromUserStore(EMAIL_OTP_RESEND_ATTEMPTS_CLAIM, mappedLocalUser,
@@ -396,16 +426,17 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
                         }
                     }
                 }
-                if (scenario == AuthenticatorConstants.AuthenticationScenarios.RESEND_OTP) {
+                if (countAgainstResendLimit) {
                     otpResendCount++;
                     shouldUpdateUserClaim = true;
                 }
             }
 
-            if (isOTPResendLimitExceededScenario(scenario, context)) {
+            if (countAgainstResendLimit && isContextBasedOTPResendBlockingEnabled(context)
+                    && isOTPResendLimitExceeded(context)) {
                 handleOTPResendCountExceededScenario(request, response, context, authenticatingUser);
                 return;
-            } else if (scenario == AuthenticatorConstants.AuthenticationScenarios.RESEND_OTP) {
+            } else if (countAgainstResendLimit) {
                 updateContextOTPResendCount(context);
             }
 
@@ -413,6 +444,8 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             try {
                 sendEmailOtp(email, applicationTenantDomain, authenticatedUserFromContext, scenario, context,
                         notifyOnEmailSendingFailure);
+                context.setProperty(AuthenticatorConstants.SENT_OTP_TOKEN_TIME_PREFIX + getName(),
+                        System.currentTimeMillis());
             } catch (AuthenticationFailedException e) {
                 String errorCode = e.getErrorCode();
                 if (!(notifyOnEmailSendingFailure

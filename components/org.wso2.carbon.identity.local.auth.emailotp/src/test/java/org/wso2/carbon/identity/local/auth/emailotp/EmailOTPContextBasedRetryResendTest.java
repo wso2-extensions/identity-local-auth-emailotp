@@ -268,6 +268,149 @@ public class EmailOTPContextBasedRetryResendTest {
         Assert.assertNull(redirectToOtp, "Should not redirect to OTP page when resend limit exceeded");
     }
 
+    @Test(description = "Flow: implicit reinit (no CODE, no RESEND, OTP_TOKEN set, !isRetrying, toggle on) "
+            + "bumps the context resend counter via the context-path")
+    public void testInitiateAuthenticationRequest_ImplicitReinit_ContextPath_BumpsResendCount() throws Exception {
+
+        Map<String, String> params = new HashMap<>();
+        params.put(MAXIMUM_RESEND_LIMIT, "5");
+        params.put(AuthenticatorConstants.COUNT_REINITIATIONS_AS_RESENDS, "true");
+        addRuntimeParamsToContext(params);
+        context.setTenantDomain(TENANT_DOMAIN);
+        context.setRetrying(false);
+        context.setCurrentAuthenticator(EMAIL_OTP_AUTHENTICATOR_NAME);
+        context.setProperty(AuthenticatorConstants.OTP_TOKEN, "000000");
+        context.setProperty(AuthenticatorConstants.SENT_OTP_TOKEN_TIME_PREFIX + EMAIL_OTP_AUTHENTICATOR_NAME,
+                System.currentTimeMillis());
+        context.setProperty(EMAIL_OTP_RESEND_ATTEMPTS_CONTEXT_PROPERTY_NAME, 0);
+
+        when(request.getParameter(AuthenticatorConstants.RESEND)).thenReturn(null);
+        when(request.getParameter(AuthenticatorConstants.CODE)).thenReturn(null);
+        when(request.getParameter(AuthenticatorConstants.CODE_LOWERCASE)).thenReturn(null);
+        when(request.getParameter(AuthenticatorConstants.USER_NAME)).thenReturn(USERNAME);
+
+        setStepConfigWithEmailOTPAuthenticator(context);
+        when(ConfigurationFacade.getInstance()).thenReturn(configurationFacade);
+        when(configurationFacade.getAuthenticationEndpointURL()).thenReturn(DUMMY_LOGIN_PAGE_URL);
+        when(FileBasedConfigurationBuilder.getInstance()).thenReturn(fileBasedConfigurationBuilder);
+        when(FrameworkServiceDataHolder.getInstance()).thenReturn(frameworkServiceDataHolder);
+        when(frameworkServiceDataHolder.getRealmService()).thenReturn(realmService);
+        when(realmService.getTenantUserRealm(anyInt())).thenReturn(userRealm);
+        when(userRealm.getUserStoreManager()).thenReturn(userStoreManager);
+
+        AuthenticatedUser subject = new AuthenticatedUser();
+        subject.setUserName(USERNAME);
+        subject.setTenantDomain(TENANT_DOMAIN);
+        subject.setUserStoreDomain(USER_STORE_DOMAIN);
+        subject.setUserId(USER_ID);
+        context.setSubject(subject);
+
+        User user = new User(UUID.randomUUID().toString(), USERNAME, null);
+        user.setUserStoreDomain(USER_STORE_DOMAIN);
+        user.setTenantDomain(TENANT_DOMAIN);
+        List<User> userList = new ArrayList<>();
+        userList.add(user);
+        Map<String, String> claimMap = new HashMap<>();
+        claimMap.put(EMAIL_ADDRESS_CLAIM, EMAIL_ADDRESS);
+        claimMap.put(EMAIL_OTP_RESEND_ATTEMPTS_CLAIM, "0");
+        claimMap.put(EMAIL_OTP_LAST_SENT_TIME_CLAIM, String.valueOf(System.currentTimeMillis()));
+
+        when(userStoreManager.getUserListWithID(USERNAME_CLAIM, USERNAME, null)).thenReturn(userList);
+        when(userStoreManager.getUserClaimValues(any(), any(), any())).thenReturn(claimMap);
+        when(userStoreManager.getSecondaryUserStoreManager(anyString())).thenReturn(userStoreManager);
+        userCoreUtil.when(() -> UserCoreUtil.getDomainFromThreadLocal()).thenReturn(DEFAULT_USER_STORE);
+
+        authenticatorUtils.when(() ->
+                AuthenticatorUtils.getEmailAuthenticatorConfig(
+                        AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_RESEND_ATTEMPTS_COUNT,
+                        TENANT_DOMAIN)).thenReturn("0");
+        authenticatorUtils.when(() ->
+                AuthenticatorUtils.getEmailOTPLoginPageUrl(any(), anyString())).thenReturn(DUMMY_LOGIN_PAGE_URL);
+        when(FileBasedConfigurationBuilder.getInstance().getAuthenticatorBean(anyString()))
+                .thenReturn(getAuthenticatorConfig());
+        AuthenticatorDataHolder.setRealmService(realmService);
+
+        Method method = findMethod(EmailOTPAuthenticator.class, "initiateAuthenticationRequest",
+                new Class[]{HttpServletRequest.class, HttpServletResponse.class, AuthenticationContext.class});
+        try {
+            method.invoke(emailOTPAuthenticator, request, response, context);
+        } catch (InvocationTargetException ignored) {
+        }
+
+        Object resendCount = context.getProperty(EMAIL_OTP_RESEND_ATTEMPTS_CONTEXT_PROPERTY_NAME);
+        assertNotNull(resendCount, "Context resend count should be updated on implicit reinit when toggle on");
+        assertEquals(((Number) resendCount).intValue(), 1, "Resend count should bump from 0 to 1");
+    }
+
+    @Test(description = "Flow: implicit reinit with toggle off does NOT bump the context resend counter")
+    public void testInitiateAuthenticationRequest_ImplicitReinit_ToggleOff_NoBump() throws Exception {
+
+        Map<String, String> params = new HashMap<>();
+        params.put(MAXIMUM_RESEND_LIMIT, "5");
+        params.put(AuthenticatorConstants.COUNT_REINITIATIONS_AS_RESENDS, "false");
+        addRuntimeParamsToContext(params);
+        context.setTenantDomain(TENANT_DOMAIN);
+        context.setRetrying(false);
+        context.setCurrentAuthenticator(EMAIL_OTP_AUTHENTICATOR_NAME);
+        context.setProperty(AuthenticatorConstants.OTP_TOKEN, "000000");
+        context.setProperty(AuthenticatorConstants.SENT_OTP_TOKEN_TIME_PREFIX + EMAIL_OTP_AUTHENTICATOR_NAME,
+                System.currentTimeMillis());
+        context.setProperty(EMAIL_OTP_RESEND_ATTEMPTS_CONTEXT_PROPERTY_NAME, 0);
+
+        when(request.getParameter(AuthenticatorConstants.RESEND)).thenReturn(null);
+        when(request.getParameter(AuthenticatorConstants.CODE)).thenReturn(null);
+        when(request.getParameter(AuthenticatorConstants.CODE_LOWERCASE)).thenReturn(null);
+        when(request.getParameter(AuthenticatorConstants.USER_NAME)).thenReturn(USERNAME);
+
+        setStepConfigWithEmailOTPAuthenticator(context);
+        when(ConfigurationFacade.getInstance()).thenReturn(configurationFacade);
+        when(configurationFacade.getAuthenticationEndpointURL()).thenReturn(DUMMY_LOGIN_PAGE_URL);
+        when(FileBasedConfigurationBuilder.getInstance()).thenReturn(fileBasedConfigurationBuilder);
+        when(FrameworkServiceDataHolder.getInstance()).thenReturn(frameworkServiceDataHolder);
+        when(frameworkServiceDataHolder.getRealmService()).thenReturn(realmService);
+        when(realmService.getTenantUserRealm(anyInt())).thenReturn(userRealm);
+        when(userRealm.getUserStoreManager()).thenReturn(userStoreManager);
+
+        AuthenticatedUser subject = new AuthenticatedUser();
+        subject.setUserName(USERNAME);
+        subject.setTenantDomain(TENANT_DOMAIN);
+        subject.setUserStoreDomain(USER_STORE_DOMAIN);
+        subject.setUserId(USER_ID);
+        context.setSubject(subject);
+
+        User user = new User(UUID.randomUUID().toString(), USERNAME, null);
+        user.setUserStoreDomain(USER_STORE_DOMAIN);
+        user.setTenantDomain(TENANT_DOMAIN);
+        List<User> userList = new ArrayList<>();
+        userList.add(user);
+        Map<String, String> claimMap = new HashMap<>();
+        claimMap.put(EMAIL_ADDRESS_CLAIM, EMAIL_ADDRESS);
+        when(userStoreManager.getUserListWithID(USERNAME_CLAIM, USERNAME, null)).thenReturn(userList);
+        when(userStoreManager.getUserClaimValues(any(), any(), any())).thenReturn(claimMap);
+        when(userStoreManager.getSecondaryUserStoreManager(anyString())).thenReturn(userStoreManager);
+        userCoreUtil.when(() -> UserCoreUtil.getDomainFromThreadLocal()).thenReturn(DEFAULT_USER_STORE);
+
+        authenticatorUtils.when(() ->
+                AuthenticatorUtils.getEmailAuthenticatorConfig(
+                        AuthenticatorConstants.ConnectorConfig.EMAIL_OTP_RESEND_ATTEMPTS_COUNT,
+                        TENANT_DOMAIN)).thenReturn("0");
+        authenticatorUtils.when(() ->
+                AuthenticatorUtils.getEmailOTPLoginPageUrl(any(), anyString())).thenReturn(DUMMY_LOGIN_PAGE_URL);
+        when(FileBasedConfigurationBuilder.getInstance().getAuthenticatorBean(anyString()))
+                .thenReturn(getAuthenticatorConfig());
+        AuthenticatorDataHolder.setRealmService(realmService);
+
+        Method method = findMethod(EmailOTPAuthenticator.class, "initiateAuthenticationRequest",
+                new Class[]{HttpServletRequest.class, HttpServletResponse.class, AuthenticationContext.class});
+        try {
+            method.invoke(emailOTPAuthenticator, request, response, context);
+        } catch (InvocationTargetException ignored) {
+        }
+
+        Object resendCount = context.getProperty(EMAIL_OTP_RESEND_ATTEMPTS_CONTEXT_PROPERTY_NAME);
+        assertEquals(((Number) resendCount).intValue(), 0, "Resend count should remain 0 when toggle off");
+    }
+
     @Test(description = "Flow: initiateAuthenticationRequest with context-based resend under limit " +
             "allows resend and updates context resend count")
     public void testInitiateAuthenticationRequest_ContextResendUnderLimit_UpdatesResendCount() throws Exception {

@@ -90,6 +90,7 @@ import javax.servlet.http.HttpServletResponse;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -243,6 +244,27 @@ public class EmailOTPAuthenticatorTest {
                 {AuthenticatorConstants.CODE},
                 {AuthenticatorConstants.CODE_LOWERCASE}
         };
+    }
+
+    @DataProvider
+    public Object[][] countReinitiationsAsResendsDataProvider() {
+
+        return new Object[][]{
+                {Optional.empty(), true},
+                {Optional.of(Boolean.TRUE), true},
+                {Optional.of(Boolean.FALSE), false}
+        };
+    }
+
+    @Test(dataProvider = "countReinitiationsAsResendsDataProvider")
+    public void testIsCountReinitiationsAsResendsEnabled(Optional<Boolean> param, boolean expected) throws Exception {
+
+        authenticatorUtils.when(() -> AuthenticatorUtils.getBooleanRuntimeParamByName(any(),
+                eq(AuthenticatorConstants.COUNT_REINITIATIONS_AS_RESENDS))).thenReturn(param);
+        Method method = EmailOTPAuthenticator.class
+                .getDeclaredMethod("isCountReinitiationsAsResendsEnabled", AuthenticationContext.class);
+        method.setAccessible(true);
+        Assert.assertEquals(method.invoke(emailOTPAuthenticator, new AuthenticationContext()), expected);
     }
 
     @Test(description = "Test case for getParameterNames() method.", dataProvider = "OTPParams")

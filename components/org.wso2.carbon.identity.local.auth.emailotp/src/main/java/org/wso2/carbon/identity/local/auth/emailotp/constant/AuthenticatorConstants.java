@@ -61,6 +61,7 @@ public class AuthenticatorConstants {
     public static final String CODE_LOWERCASE = "OTPcode";
     public static final String DISPLAY_CODE = "Code";
     public static final String OTP_TOKEN = "otpToken";
+    public static final String SENT_OTP_TOKEN_TIME_PREFIX = "sentOtpTokenTime.";
     public static final String EMAIL_OTP_TEMPLATE_NAME = "EmailOTP";
     public static final String RESEND_EMAIL_OTP_TEMPLATE_NAME = "ResendEmailOTP";
     public static final String LOCAL_CLAIM_VALUE = "locale";
@@ -119,6 +120,7 @@ public class AuthenticatorConstants {
     // Runtime Params.
     public static final String MAXIMUM_ALLOWED_FAILURE_LIMIT = "maximumAllowedFailureAttempts";
     public static final String MAXIMUM_RESEND_LIMIT = "maximumAllowedResendAttempts";
+    public static final String COUNT_REINITIATIONS_AS_RESENDS = "CountReinitiationsAsResends";
     public static final String SKIP_RESEND_BLOCK_TIME = "skipResendBlockTime";
     public static final String TERMINATE_ON_RESEND_LIMIT_EXCEEDED = "terminateOnResendLimitExceeded";
 
