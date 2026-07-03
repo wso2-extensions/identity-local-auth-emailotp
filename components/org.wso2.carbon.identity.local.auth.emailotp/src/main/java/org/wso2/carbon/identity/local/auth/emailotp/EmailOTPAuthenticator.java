@@ -382,8 +382,10 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             boolean isUserBasedResendLimitEnabled =
                     isUserBasedOTPResendBlockingEnabled(applicationTenantDomain, context) && isUserExists;
             /*
-             * Implicit reinitiation looks should consume a resend slot when the toggle is on: check the limit before
-             * sending, increment only after a successful send.
+             * Whether this send consumes a resend slot: always for an explicit RESEND_OTP, and for an implicit
+             * reinitiation when the CountReinitiationsAsResends toggle is on. The context resend counter is
+             * incremented before sending (as with RESEND_OTP); the user-store resend claim is persisted only
+             * after a successful send.
              */
             boolean countAgainstResendLimit =
                     scenario == AuthenticatorConstants.AuthenticationScenarios.RESEND_OTP

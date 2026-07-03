@@ -39,8 +39,10 @@ import org.wso2.carbon.identity.application.authentication.framework.model.Authe
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkConstants;
 import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkUtils;
 import org.wso2.carbon.identity.central.log.mgt.utils.LoggerUtils;
+import org.wso2.carbon.identity.core.util.IdentityConfigParser;
 import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
 import org.wso2.carbon.identity.event.services.IdentityEventService;
+import org.wso2.carbon.identity.governance.IdentityGovernanceService;
 import org.wso2.carbon.identity.local.auth.emailotp.constant.AuthenticatorConstants;
 import org.wso2.carbon.identity.local.auth.emailotp.internal.AuthenticatorDataHolder;
 import org.wso2.carbon.identity.local.auth.emailotp.util.AuthenticatorUtils;
@@ -119,6 +121,7 @@ public class EmailOTPContextBasedRetryResendTest {
     private MockedStatic<LoggerUtils> loggerUtils;
     private MockedStatic<UserCoreUtil> userCoreUtil;
     private MockedStatic<IdentityTenantUtil> identityTenantUtil;
+    private MockedStatic<IdentityConfigParser> identityConfigParser;
 
     @BeforeMethod
     public void setUp() {
@@ -143,6 +146,11 @@ public class EmailOTPContextBasedRetryResendTest {
         loggerUtils = mockStatic(LoggerUtils.class);
         userCoreUtil = mockStatic(UserCoreUtil.class, Mockito.CALLS_REAL_METHODS);
         identityTenantUtil = mockStatic(IdentityTenantUtil.class);
+        identityConfigParser = mockStatic(IdentityConfigParser.class);
+
+        IdentityConfigParser identityConfigParserInstance = mock(IdentityConfigParser.class);
+        identityConfigParser.when(IdentityConfigParser::getInstance).thenReturn(identityConfigParserInstance);
+        when(identityConfigParserInstance.getConfiguration()).thenReturn(new HashMap<>());
 
         loggerUtils.when(LoggerUtils::isDiagnosticLogsEnabled).thenReturn(false);
         identityTenantUtil.when(() -> IdentityTenantUtil.getTenantId(TENANT_DOMAIN)).thenReturn(-1234);
@@ -155,6 +163,7 @@ public class EmailOTPContextBasedRetryResendTest {
         authenticatorUtils.when(() -> AuthenticatorUtils.getBooleanRuntimeParamByName(any(), anyString()))
                 .thenCallRealMethod();
         AuthenticatorDataHolder.setIdentityEventService(mock(IdentityEventService.class));
+        AuthenticatorDataHolder.setIdentityGovernanceService(mock(IdentityGovernanceService.class));
     }
 
     @AfterMethod
@@ -185,6 +194,9 @@ public class EmailOTPContextBasedRetryResendTest {
         }
         if (identityTenantUtil != null) {
             identityTenantUtil.close();
+        }
+        if (identityConfigParser != null) {
+            identityConfigParser.close();
         }
     }
 
@@ -332,10 +344,7 @@ public class EmailOTPContextBasedRetryResendTest {
 
         Method method = findMethod(EmailOTPAuthenticator.class, "initiateAuthenticationRequest",
                 new Class[]{HttpServletRequest.class, HttpServletResponse.class, AuthenticationContext.class});
-        try {
-            method.invoke(emailOTPAuthenticator, request, response, context);
-        } catch (InvocationTargetException ignored) {
-        }
+        invokeInitiateExpectingRedirect(method);
 
         Object resendCount = context.getProperty(EMAIL_OTP_RESEND_ATTEMPTS_CONTEXT_PROPERTY_NAME);
         assertNotNull(resendCount, "Context resend count should be updated on implicit reinit when toggle on");
@@ -402,10 +411,7 @@ public class EmailOTPContextBasedRetryResendTest {
 
         Method method = findMethod(EmailOTPAuthenticator.class, "initiateAuthenticationRequest",
                 new Class[]{HttpServletRequest.class, HttpServletResponse.class, AuthenticationContext.class});
-        try {
-            method.invoke(emailOTPAuthenticator, request, response, context);
-        } catch (InvocationTargetException ignored) {
-        }
+        invokeInitiateExpectingRedirect(method);
 
         Object resendCount = context.getProperty(EMAIL_OTP_RESEND_ATTEMPTS_CONTEXT_PROPERTY_NAME);
         assertEquals(((Number) resendCount).intValue(), 0, "Resend count should remain 0 when toggle off");
@@ -467,10 +473,7 @@ public class EmailOTPContextBasedRetryResendTest {
         Method method = findMethod(EmailOTPAuthenticator.class, "initiateAuthenticationRequest",
                 new Class[]{HttpServletRequest.class, HttpServletResponse.class, AuthenticationContext.class});
 
-        try {
-            method.invoke(emailOTPAuthenticator, request, response, context);
-        } catch (InvocationTargetException ignored) {
-        }
+        invokeInitiateExpectingRedirect(method);
 
         // Resend count should have been incremented (RESEND_OTP scenario)
         Object resendCount = context.getProperty(EMAIL_OTP_RESEND_ATTEMPTS_CONTEXT_PROPERTY_NAME);
@@ -953,6 +956,24 @@ public class EmailOTPContextBasedRetryResendTest {
         } catch (NoSuchMethodException e) {
             if (clazz.getSuperclass() != null) {
                 return findMethod(clazz.getSuperclass(), name, paramTypes);
+            }
+            throw e;
+        }
+    }
+
+    /**
+     * Invokes initiateAuthenticationRequest for flows that are expected to redirect and complete without throwing.
+     * Any InvocationTargetException is unwrapped and rethrown so a genuine flow failure fails the test instead of
+     * being silently swallowed (which would let assertions pass against pre-set property values).
+     */
+    private void invokeInitiateExpectingRedirect(Method method) throws Exception {
+
+        try {
+            method.invoke(emailOTPAuthenticator, request, response, context);
+        } catch (InvocationTargetException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof Exception) {
+                throw (Exception) cause;
             }
             throw e;
         }
