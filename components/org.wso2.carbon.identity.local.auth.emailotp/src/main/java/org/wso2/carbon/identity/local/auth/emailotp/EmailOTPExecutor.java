@@ -95,6 +95,10 @@ public class EmailOTPExecutor extends AbstractOTPExecutor {
         eventProperties.put(NotificationConstants.EmailNotification.EMAIL_TEMPLATE_TYPE, flowProperties.templateType);
         eventProperties.put(NotificationConstants.ARBITRARY_SEND_TO, email);
         eventProperties.put(NotificationConstants.TENANT_DOMAIN, tenantDomain);
+        eventProperties.put(IdentityEventConstants.EventProperty.USER_NAME, context.getFlowUser().getUsername());
+        eventProperties.put(IdentityEventConstants.EventProperty.USER_STORE_DOMAIN, context.getFlowUser().
+                getUserStoreDomain());
+
         if (StringUtils.isNotBlank(context.getApplicationId())) {
             eventProperties.put(IdentityEventConstants.EventProperty.SERVICE_PROVIDER_UUID,
                     context.getApplicationId());
