@@ -148,6 +148,55 @@ public class EmailOTPExecutorTest {
     }
 
     @Test
+    public void testGetSendOTPEventDeviceRegistration() {
+
+        when(flowExecutionContext.getFlowType()).thenReturn("DEVICE_REGISTRATION");
+        when(flowExecutionContext.getTenantDomain()).thenReturn(SUPER_TENANT);
+        FlowUser flowUser = mock(FlowUser.class);
+        when(flowExecutionContext.getFlowUser()).thenReturn(flowUser);
+        when(flowUser.getUsername()).thenReturn("testUser");
+        when(flowUser.getClaim(EMAIL_ADDRESS_CLAIM)).thenReturn(TEST_USER_EMAIL);
+        OTP otp = mock(OTP.class);
+        when(otp.getValue()).thenReturn(OTP_CODE);
+        when(otp.getGeneratedTimeInMillis()).thenReturn(System.currentTimeMillis());
+        when(otp.getExpiryTimeInMillis()).thenReturn(System.currentTimeMillis() + 60000);
+
+        Event event = emailOTPExecutor.getSendOTPEvent(OTPExecutorConstants.OTPScenarios.INITIAL_OTP,
+                otp, flowExecutionContext);
+        Assert.assertNotNull(event);
+
+        Assert.assertEquals(event.getEventName(), IdentityEventConstants.Event.TRIGGER_NOTIFICATION);
+        Assert.assertEquals(event.getEventProperties().get(NotificationConstants.TENANT_DOMAIN), SUPER_TENANT);
+        Assert.assertEquals(event.getEventProperties().get(CODE), OTP_CODE);
+        Assert.assertEquals(event.getEventProperties().get(NotificationConstants.EmailNotification.EMAIL_TEMPLATE_TYPE),
+                ExecutorConstants.EMAIL_OTP_DEVICE_REGISTRATION_TEMPLATE);
+        Assert.assertEquals(event.getEventProperties().get(NotificationConstants.ARBITRARY_SEND_TO), TEST_USER_EMAIL);
+    }
+
+    @Test
+    public void testGetSendOTPEventDeviceRegistrationResendOTP() {
+
+        when(flowExecutionContext.getFlowType()).thenReturn("DEVICE_REGISTRATION");
+        when(flowExecutionContext.getTenantDomain()).thenReturn(SUPER_TENANT);
+        FlowUser flowUser = mock(FlowUser.class);
+        when(flowExecutionContext.getFlowUser()).thenReturn(flowUser);
+        when(flowUser.getUsername()).thenReturn("testUser");
+        when(flowUser.getClaim(EMAIL_ADDRESS_CLAIM)).thenReturn(TEST_USER_EMAIL);
+        OTP otp = mock(OTP.class);
+        when(otp.getValue()).thenReturn(OTP_CODE);
+        when(otp.getGeneratedTimeInMillis()).thenReturn(System.currentTimeMillis());
+        when(otp.getExpiryTimeInMillis()).thenReturn(System.currentTimeMillis() + 60000);
+
+        Event event = emailOTPExecutor.getSendOTPEvent(OTPExecutorConstants.OTPScenarios.RESEND_OTP,
+                otp, flowExecutionContext);
+        Assert.assertNotNull(event);
+
+        Assert.assertEquals(event.getEventProperties().get(CODE), OTP_CODE);
+        Assert.assertEquals(event.getEventProperties().get(NotificationConstants.EmailNotification.EMAIL_TEMPLATE_TYPE),
+                ExecutorConstants.EMAIL_OTP_DEVICE_REGISTRATION_TEMPLATE);
+    }
+
+    @Test
     public void testGetSendOTPEventIncludesServiceProviderUUID() {
 
         when(flowExecutionContext.getFlowType()).thenReturn("REGISTRATION");
@@ -206,6 +255,8 @@ public class EmailOTPExecutorTest {
     public Object[][] flowTypeData() {
         return new Object[][] {
                 { "REGISTRATION", CODE, ExecutorConstants.EMAIL_OTP_VERIFY_TEMPLATE },
+                { "INVITED_USER_REGISTRATION", CODE, ExecutorConstants.EMAIL_OTP_VERIFY_TEMPLATE },
+                { "DEVICE_REGISTRATION", CODE, ExecutorConstants.EMAIL_OTP_DEVICE_REGISTRATION_TEMPLATE },
                 { "PASSWORD_RECOVERY",
                         AuthenticatorConstants.CONFIRMATION_CODE,
                         ExecutorConstants.EMAIL_OTP_PASSWORD_RESET_TEMPLATE },
