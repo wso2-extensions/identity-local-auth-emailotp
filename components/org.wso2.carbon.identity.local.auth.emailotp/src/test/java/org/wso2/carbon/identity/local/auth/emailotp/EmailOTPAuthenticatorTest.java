@@ -945,6 +945,119 @@ public class EmailOTPAuthenticatorTest {
                 "AuthenticatorMessage code must carry the EP error code.");
     }
 
+    @Test(description = "Test that the otpAlreadySentInFlow context marker is set after a successful OTP send, " +
+            "so that subsequent look-alike initiate requests in the same flow can be treated as resends.")
+    public void testOtpAlreadySentInFlowMarkerSetAfterSuccessfulSend() throws Exception {
+
+        Map<String, String> claimMap = new HashMap<>();
+        claimMap.put(EMAIL_ADDRESS_CLAIM, EMAIL_ADDRESS);
+
+        setAuthenticatorConfig();
+        configureAuthenticatedUser(true);
+        configureAuthenticatorDataHolder();
+        configureIdentityProvider();
+        context.setTenantDomain(TENANT_DOMAIN);
+
+        when(FederatedAuthenticatorUtil.getLoggedInFederatedUser(any())).thenReturn(USERNAME);
+        when(FederatedAuthenticatorUtil.getLocalUsernameAssociatedWithFederatedUser(any(), any()))
+                .thenReturn(USERNAME);
+        when(realmService.getTenantUserRealm(TENANT_ID)).thenReturn(userRealm);
+        when(userRealm.getUserStoreManager()).thenReturn(userStoreManager);
+        when(userStoreManager.getUserClaimValues(any(), any(), any())).thenReturn(claimMap);
+        when(FileBasedConfigurationBuilder.getInstance()).thenReturn(fileBasedConfigurationBuilder);
+        when(CaptchaDataHolder.getInstance()).thenReturn(captchaDataHolder);
+        when(IdentityConfigParser.getInstance()).thenReturn(identityConfigParser);
+        Map<String, Object> configs = new HashMap<>();
+        configs.put(HIDE_USER_EXISTENCE_CONFIG, "false");
+        when(identityConfigParser.getConfiguration()).thenReturn(configs);
+
+        // The OTP send succeeds (handleEvent does not throw).
+        emailOTPAuthenticator.process(httpServletRequest, httpServletResponse, context);
+
+        assertEquals(context.getProperty(EMAIL_OTP_AUTHENTICATOR_NAME + ".otpAlreadySentInFlow"), Boolean.TRUE,
+                "The otpAlreadySentInFlow marker must be set after a successful OTP send.");
+    }
+
+    @Test(description = "Test that the otpAlreadySentInFlow context marker is NOT set when the OTP send fails, " +
+            "so a genuine subsequent attempt by the user is still treated as an initial send.")
+    public void testOtpAlreadySentInFlowMarkerNotSetWhenSendFails() throws Exception {
+
+        Map<String, String> claimMap = new HashMap<>();
+        claimMap.put(EMAIL_ADDRESS_CLAIM, EMAIL_ADDRESS);
+
+        setAuthenticatorConfig();
+        configureAuthenticatedUser(true);
+        configureAuthenticatorDataHolder();
+        configureIdentityProvider();
+        context.setTenantDomain(TENANT_DOMAIN);
+
+        when(FederatedAuthenticatorUtil.getLoggedInFederatedUser(any())).thenReturn(USERNAME);
+        when(FederatedAuthenticatorUtil.getLocalUsernameAssociatedWithFederatedUser(any(), any()))
+                .thenReturn(USERNAME);
+        when(realmService.getTenantUserRealm(TENANT_ID)).thenReturn(userRealm);
+        when(userRealm.getUserStoreManager()).thenReturn(userStoreManager);
+        when(userStoreManager.getUserClaimValues(any(), any(), any())).thenReturn(claimMap);
+        when(FileBasedConfigurationBuilder.getInstance()).thenReturn(fileBasedConfigurationBuilder);
+        when(CaptchaDataHolder.getInstance()).thenReturn(captchaDataHolder);
+        when(IdentityConfigParser.getInstance()).thenReturn(identityConfigParser);
+        Map<String, Object> configs = new HashMap<>();
+        configs.put(HIDE_USER_EXISTENCE_CONFIG, "false");
+        when(identityConfigParser.getConfiguration()).thenReturn(configs);
+
+        commonUtils.when(() -> CommonUtils.isNotifyEmailSendingFailureEnabled(anyString())).thenReturn(true);
+
+        // Fail the OTP send (TRIGGER_NOTIFICATION) with a swallowed EP error so the flow still completes.
+        String epErrorCode = AuthenticatorConstants.EMAIL_PROVIDER_ERROR_CODE_PREFIX + "12345";
+        doAnswer(invocation -> {
+            Event event = invocation.getArgument(0);
+            if (IdentityEventConstants.Event.TRIGGER_NOTIFICATION.equals(event.getEventName())) {
+                throw new IdentityEventException(epErrorCode, "Email provider connection failed");
+            }
+            return null;
+        }).when(identityEventService).handleEvent(any());
+
+        emailOTPAuthenticator.process(httpServletRequest, httpServletResponse, context);
+
+        Assert.assertNull(context.getProperty(EMAIL_OTP_AUTHENTICATOR_NAME + ".otpAlreadySentInFlow"),
+                "The otpAlreadySentInFlow marker must not be set when the OTP send fails.");
+    }
+
+    @Test(description = "Test that an initiate request that resolves to INITIAL_OTP is treated as a resend " +
+            "(and counted against the resend attempts) when an OTP has already been sent in the same flow.")
+    public void testInitialOtpTreatedAsResendWhenAlreadySentInFlow() throws Exception {
+
+        Map<String, String> claimMap = new HashMap<>();
+        claimMap.put(EMAIL_ADDRESS_CLAIM, EMAIL_ADDRESS);
+
+        setAuthenticatorConfig();
+        configureAuthenticatedUser(true);
+        configureAuthenticatorDataHolder();
+        configureIdentityProvider();
+        context.setTenantDomain(TENANT_DOMAIN);
+
+        when(FederatedAuthenticatorUtil.getLoggedInFederatedUser(any())).thenReturn(USERNAME);
+        when(FederatedAuthenticatorUtil.getLocalUsernameAssociatedWithFederatedUser(any(), any()))
+                .thenReturn(USERNAME);
+        when(realmService.getTenantUserRealm(TENANT_ID)).thenReturn(userRealm);
+        when(userRealm.getUserStoreManager()).thenReturn(userStoreManager);
+        when(userStoreManager.getUserClaimValues(any(), any(), any())).thenReturn(claimMap);
+        when(FileBasedConfigurationBuilder.getInstance()).thenReturn(fileBasedConfigurationBuilder);
+        when(CaptchaDataHolder.getInstance()).thenReturn(captchaDataHolder);
+        when(IdentityConfigParser.getInstance()).thenReturn(identityConfigParser);
+        Map<String, Object> configs = new HashMap<>();
+        configs.put(HIDE_USER_EXISTENCE_CONFIG, "false");
+        when(identityConfigParser.getConfiguration()).thenReturn(configs);
+
+        // An OTP has already been sent earlier in this same authentication flow.
+        context.setProperty(EMAIL_OTP_AUTHENTICATOR_NAME + ".otpAlreadySentInFlow", true);
+
+        // A plain initiate request (no OTP code, no resend flag) would otherwise resolve to INITIAL_OTP.
+        emailOTPAuthenticator.process(httpServletRequest, httpServletResponse, context);
+
+        assertEquals(context.getProperty(AuthenticatorConstants.EMAIL_OTP_RESEND_ATTEMPTS_CONTEXT_PROPERTY_NAME), 1,
+                "A look-alike initiate request after an OTP was already sent must be counted as a resend.");
+    }
+
     @Test(description = "Test that when sendEmailOtp throws an AuthenticationFailedException with a non-'EP-' " +
             "error code, the exception is NOT swallowed even when notify email sending failure is enabled.")
     public void testNonEPErrorFromSendEmailOtpNotSwallowedWhenNotifyEnabled() throws Exception {

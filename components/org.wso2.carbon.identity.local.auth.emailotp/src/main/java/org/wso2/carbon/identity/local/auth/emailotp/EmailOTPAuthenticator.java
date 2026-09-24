@@ -234,6 +234,12 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
         AuthenticatedUser authenticatedUserFromContext = getAuthenticatedUserFromContext(context);
         AuthenticatorConstants.AuthenticationScenarios scenario = resolveScenario(request, context);
 
+        String otpAlreadySentInFlowKey = getName() + ".otpAlreadySentInFlow";
+        if (scenario == AuthenticatorConstants.AuthenticationScenarios.INITIAL_OTP
+                && Boolean.TRUE.equals(context.getProperty(otpAlreadySentInFlowKey))) {
+            scenario = AuthenticatorConstants.AuthenticationScenarios.RESEND_OTP;
+        }
+
         if (authenticatedUserFromContext == null) {
             if (context.isRetrying() && Boolean.parseBoolean(request.getParameter(AuthenticatorConstants.RESEND))) {
                 if (isOTPResendLimitExceededScenario(scenario, context)) {
@@ -413,6 +419,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             try {
                 sendEmailOtp(email, applicationTenantDomain, authenticatedUserFromContext, scenario, context,
                         notifyOnEmailSendingFailure);
+                context.setProperty(getName() + ".otpAlreadySentInFlow", true);
             } catch (AuthenticationFailedException e) {
                 String errorCode = e.getErrorCode();
                 if (!(notifyOnEmailSendingFailure
@@ -593,6 +600,7 @@ public class EmailOTPAuthenticator extends AbstractApplicationAuthenticator
             }
             resetContextRetryCount(context);
             resetContextResendCount(context);
+            context.removeProperty(getName() + ".otpAlreadySentInFlow");
             publishPostEmailOTPValidatedEvent(authenticatedUserFromContext, true,
                     false, request, context);
             if (LoggerUtils.isDiagnosticLogsEnabled()) {
