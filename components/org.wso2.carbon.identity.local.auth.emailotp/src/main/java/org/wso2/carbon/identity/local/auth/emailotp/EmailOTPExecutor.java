@@ -55,6 +55,7 @@ public class EmailOTPExecutor extends AbstractOTPExecutor {
     private static final String PASSWORD_RECOVERY = "PASSWORD_RECOVERY";
     private static final String REGISTRATION = "REGISTRATION";
     private static final String ASK_PASSWORD = "INVITED_USER_REGISTRATION";
+    private static final String PROFILE_UPDATE = "PROFILE_UPDATE";
 
     @Override
     public String getName() {
@@ -200,6 +201,8 @@ public class EmailOTPExecutor extends AbstractOTPExecutor {
             case REGISTRATION:
             case ASK_PASSWORD:
                 return new FlowTypeProperties(CODE, ExecutorConstants.EMAIL_OTP_VERIFY_TEMPLATE);
+            case PROFILE_UPDATE:
+                return new FlowTypeProperties(CODE, ExecutorConstants.EMAIL_OTP_PROFILE_UPDATE_TEMPLATE);
             case PASSWORD_RECOVERY:
                 return new FlowTypeProperties(CONFIRMATION_CODE, ExecutorConstants.EMAIL_OTP_PASSWORD_RESET_TEMPLATE);
             default:
