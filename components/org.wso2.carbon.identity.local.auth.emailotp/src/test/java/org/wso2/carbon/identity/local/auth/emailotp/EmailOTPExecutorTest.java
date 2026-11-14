@@ -207,6 +207,7 @@ public class EmailOTPExecutorTest {
         return new Object[][] {
                 { "REGISTRATION", CODE, ExecutorConstants.EMAIL_OTP_VERIFY_TEMPLATE },
                 { "PROFILE_UPDATE", CODE, ExecutorConstants.EMAIL_OTP_PROFILE_UPDATE_TEMPLATE },
+                { "DEVICE_REGISTRATION", CODE, ExecutorConstants.EMAIL_OTP_DEVICE_REGISTRATION_TEMPLATE },
                 { "PASSWORD_RECOVERY",
                         AuthenticatorConstants.CONFIRMATION_CODE,
                         ExecutorConstants.EMAIL_OTP_PASSWORD_RESET_TEMPLATE },
